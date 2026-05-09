@@ -377,7 +377,7 @@
     </div>
     <div class="page-title">Match Centre</div>
 
-    <div id="match-predictions-row" style="display: flex; overflow-x: auto; gap: 10px; padding: 0 16px 20px 16px; scrollbar-width: none;">
+    <div id="match-predictions-row" style="display: flex; gap: 8px; padding: 0 16px 20px 16px;">
         </div>
 
     <div class="mini-tabs">
@@ -799,7 +799,7 @@ async function openMatchCentre(matchCustomId, sofaId, statsUrl, videoUrl) {
             }
 
             row.innerHTML += `
-                <div class="card" style="min-width: 130px; margin: 0; padding: 12px; text-align: center; flex-shrink: 0; border: 1px solid #e5e5ea;">
+                <div class="card" style="flex: 1; min-width: 0; margin: 0; padding: 12px; text-align: center; border: 1px solid #e5e5ea;">
                     <div style="font-weight: 800; font-size: 11px; text-transform: uppercase;">${p.user_name}</div>
                     <div style="font-size: 10px; color: var(--red); font-weight: 700;">${calculatedPoints} pts</div>
                     <div style="font-size: 18px; font-weight: 800; margin: 5px 0;">${p.pred_home}-${p.pred_away}</div>
