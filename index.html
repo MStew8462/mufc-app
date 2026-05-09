@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MUFC App</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --red: #DA291C; --bg: #f2f2f7; --text-main: #1c1c1e; --text-muted: #8e8e93; --card-bg: #ffffff; }
+        body { margin: 0; padding: 0; background-color: var(--bg); font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; max-width: 430px; margin: 0 auto; position: relative; padding-bottom: 100px; box-sizing: border-box; }
+        * { box-sizing: border-box; }
+
+.social-box {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.social-box:active {
+    transform: scale(0.95);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.social-box img {
+    width: 30px;
+    height: 30px;
+    margin-bottom: 8px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.social-box span {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+}
+
+/* ── SQUAD CARDS ─────────────────────────────────────────── */
+.squad-card {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    margin: 0 16px 10px 16px;
+    background: var(--card-bg);
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    gap: 14px;
+    cursor: default;
+}
+.squad-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: var(--red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 18px;
+    color: white;
+    flex-shrink: 0;
+    letter-spacing: -0.5px;
+}
+.squad-avatar.gk-avatar {
+    background: #1c1c1e;
+}
+.squad-info { flex: 1; min-width: 0; }
+.squad-name { font-weight: 800; font-size: 14px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.squad-pos-badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.pos-gk { background: #1c1c1e; color: white; }
+.pos-df { background: #0a84ff22; color: #0a84ff; }
+.pos-mf { background: #34c75922; color: #30a84d; }
+.pos-fw { background: #ff375f22; color: #da291c; }
+.squad-stats-row { display: flex; gap: 12px; }
+.squad-stat { text-align: center; }
+.squad-stat-val { font-size: 15px; font-weight: 900; color: var(--text-main); line-height: 1; }
+.squad-stat-lbl { font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-top: 1px; }
+.squad-stats-btn {
+    background: none;
+    border: 1.5px solid #e5e5ea;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--red);
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.squad-section-header {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    padding: 14px 16px 6px 16px;
+}
+
+        /* Screens */
+        .screen { display: none; animation: fadeIn 0.2s ease-out; }
+        .screen.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Prediction Preview Card - Integrated & Styled */
+        #prediction-preview { 
+            display: none; 
+            border-top: 4px solid var(--text-main); 
+            background: #fff;
+            margin-bottom: 16px;
+        }
+        .preview-score { font-size: 28px; font-weight: 800; color: var(--red); margin: 5px 0; }
+        .preview-scorer { font-size: 12px; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* Typography & Cards */
+        .page-title { text-align: center; font-weight: 800; font-size: 16px; margin: 20px 0; color: var(--text-main); text-transform: uppercase; letter-spacing: -0.5px;}
+        .section-label { font-size: 12px; font-weight: 800; color: var(--red); text-transform: uppercase; letter-spacing: 1px; margin: 24px 0 10px 16px; border-bottom: 2px solid var(--red); display: inline-block; padding-bottom: 4px; }
+        .card { background: var(--card-bg); margin: 0 16px 16px 16px; padding: 20px; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); cursor: pointer;}
+        .center-text { text-align: center; }
+        
+        /* Profile */
+        .profile-card { background: linear-gradient(135deg, #1c1c1e 0%, #000000 100%); margin: 20px 16px; padding: 30px 20px; border-radius: 20px; text-align: center; color: white; box-shadow: 0 10px 20px rgba(0,0,0,0.15); }
+        .rank-badge { background: var(--red); color: white; font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 12px; display: inline-block; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;}
+        
+        /* Text Elements */
+        .fix-date { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; }
+        .fix-teams { font-size: 17px; font-weight: 800; color: var(--text-main); letter-spacing: -0.5px;}
+        .fix-sub { font-size: 12px; color: var(--text-muted); margin-top: 6px; font-weight: 500; }
+        .row-flex { display: flex; justify-content: space-between; align-items: center; }
+        .gap-flex { display: flex; justify-content: space-between; gap: 12px; margin: 0 16px; }
+        .w-50 { flex: 1; }
+
+        /* Tables */
+        .slick-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .slick-table th { text-align: left; padding: 8px 0; color: var(--text-muted); font-size: 10px; text-transform: uppercase; border-bottom: 1px solid #e5e5ea; font-weight: 700;}
+        .slick-table td { padding: 12px 0; border-bottom: 1px solid #f2f2f7; font-weight: 600; color: var(--text-main);}
+        .slick-table tr:last-child td { border-bottom: none; }
+        .slick-table .rank { color: var(--text-muted); font-weight: 700; width: 22px; }
+        .slick-table .num { text-align: right; font-weight: 800;}
+        .highlight-row td { font-weight: 800 !important; color: var(--red) !important; }
+
+        /* Squad */
+        .squad-pic { width: 44px; height: 44px; border-radius: 50%; background: #e5e5ea; margin-right: 15px; }
+        .stat-highlight { color: var(--text-main); font-weight: 800; }
+        
+        /* Toast Notification */
+        #toast { visibility: hidden; min-width: 200px; background-color: #1c1c1e; color: #fff; text-align: center; border-radius: 12px; padding: 16px; position: fixed; z-index: 20000; left: 50%; bottom: 100px; transform: translateX(-50%); font-size: 13px; font-weight: 700; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        #toast.show { visibility: visible; animation: fadeinout 2s forwards; }
+        @keyframes fadeinout { 0% { opacity: 0; bottom: 80px; } 20% { opacity: 1; bottom: 100px; } 80% { opacity: 1; bottom: 100px; } 100% { opacity: 0; bottom: 80px; } }
+
+        /* Match Center Tabs */
+        .mini-tabs { display: flex; margin: 0 16px 16px 16px; background: #e5e5ea; border-radius: 8px; padding: 2px; }
+        .m-tab { flex: 1; text-align: center; font-size: 11px; font-weight: 700; padding: 8px 0; border-radius: 6px; color: var(--text-muted); cursor: pointer; transition: 0.2s;}
+        .m-tab.active { background: white; color: var(--text-main); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .m-content { display: none; padding: 0 16px; }
+        .m-content.active { display: block; animation: fadeIn 0.2s ease-out;}
+
+        /* Modal Overlay */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: none; justify-content: center; align-items: flex-end; opacity: 0; transition: opacity 0.2s;}
+        .modal-overlay.active { display: flex; opacity: 1; }
+        .modal-content { background: white; width: 100%; max-width: 430px; border-radius: 24px 24px 0 0; padding: 25px 20px 40px 20px; transform: translateY(100%); transition: transform 0.3s;}
+        .modal-overlay.active .modal-content { transform: translateY(0); }
+        
+        /* Buttons & Inputs */
+        .btn-primary { background: var(--red); color: white; border: none; padding: 16px; border-radius: 14px; font-size: 14px; font-weight: 800; width: calc(100% - 32px); margin: 0 16px 16px 16px; cursor: pointer; text-transform: uppercase; transition: background 0.2s;}
+        .btn-full { width: 100%; margin: 0 0 10px 0; }
+        .btn-close { background: #e5e5ea; color: var(--text-main); }
+        .input-group { display: flex; gap: 10px; margin-bottom: 20px; width: 100%;}
+        .score-input { flex: 1; text-align: center; padding: 15px; border: 1px solid #e5e5ea; border-radius: 12px; font-size: 20px; font-weight: 800; outline: none; width: 100%;}
+        .select-input { width: 100%; padding: 15px; border: 1px solid #e5e5ea; border-radius: 12px; font-size: 15px; font-weight: 600; outline: none; margin-bottom: 20px;}
+
+        /* Nav */
+        .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(15px); border-top: 1px solid #e5e5ea; display: flex; justify-content: space-around; padding: 15px 0 25px 0; z-index: 9999; }
+        .nav-item { font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; cursor: pointer; padding: 8px 12px; border-radius: 12px; transition: 0.2s;}
+        .nav-item.active { color: var(--red); background: rgba(218, 41, 28, 0.1); }
+
+        /* ── MEDIA SCREEN ──────────────────────────────────── */
+        .media-section-title {
+            font-size: 11px; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--text-muted);
+            padding: 20px 16px 8px 16px;
+        }
+        .media-float-btn {
+            display: flex; align-items: center; justify-content: space-between;
+            background: var(--card-bg);
+            border-radius: 14px;
+            padding: 15px 18px;
+            margin: 0 16px 10px 16px;
+            cursor: pointer;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+            border: 1px solid #efefef;
+            transition: box-shadow 0.15s, transform 0.15s;
+        }
+        .media-float-btn:active { transform: scale(0.98); box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+        .media-float-label { font-size: 14px; font-weight: 700; color: var(--text-main); }
+        .media-float-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; font-weight: 500; }
+        .media-float-pill {
+            font-size: 11px; font-weight: 800; color: white;
+            background: var(--red); padding: 6px 14px;
+            border-radius: 20px; flex-shrink: 0; margin-left: 12px;
+            letter-spacing: 0.3px;
+        }
+        .media-float-pill.dark { background: #1c1c1e; }
+        .media-float-pill.green { background: #1DB954; }
+        .media-social-grid {
+            display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 10px; margin: 0 16px 8px 16px;
+        }
+        .media-social-btn {
+            background: var(--card-bg); border-radius: 14px;
+            padding: 14px 8px; text-align: center; cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            border: 1px solid #efefef;
+        }
+        .media-social-btn:active { transform: scale(0.96); }
+        .media-social-btn img { width: 24px; height: 24px; object-fit: contain; display: block; margin: 0 auto 6px; }
+        .media-social-btn span { font-size: 9px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+
+        /* ── ADMIN COLLAPSIBLE ──────────────────────────────── */
+        .admin-section {
+            margin: 0 16px 8px 16px; border-radius: 14px;
+            overflow: hidden; background: var(--card-bg);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid #f0f0f0;
+        }
+        .admin-section-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 18px; cursor: pointer;
+            font-weight: 700; font-size: 13px; user-select: none;
+        }
+        .admin-section-header:active { background: #f9f9f9; }
+        .admin-chevron {
+            font-size: 20px; color: var(--text-muted);
+            transition: transform 0.2s ease; display: inline-block; font-weight: 300;
+        }
+        .admin-chevron.open { transform: rotate(90deg); }
+        .admin-panel { display: none; padding: 4px 16px 16px 16px; border-top: 1px solid #f5f5f5; }
+        .admin-panel.open { display: block; }
+        .admin-panel .select-input { margin-bottom: 10px; }
+        .admin-panel .score-input { margin-bottom: 10px; }
+        .admin-panel input[type="number"],
+        .admin-panel input[type="text"],
+        .admin-panel input[type="date"] { margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="screen-login" class="screen active" style="background: var(--bg); position: fixed; top: 0; left: 0; width: 100%; height: 100vh; z-index: 100000; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; pointer-events: all;">
+    <img src="https://upload.wikimedia.org/wikipedia/en/thumb/7/7a/Manchester_United_FC_crest.svg/120px-Manchester_United_FC_crest.svg.png" style="width:80px; margin-bottom:20px;">
+    <h2 style="font-weight: 800; text-transform: uppercase; letter-spacing: -1px; margin: 0;">MUFC Predictor</h2>
+    <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 30px; font-weight: 700; text-transform: uppercase;">Select Your Account</p>
+    
+    <select id="login-username" class="select-input" style="max-width: 300px; width: 100%; margin-bottom: 15px; cursor: pointer;">
+        <option value="James">James</option>
+        <option value="Adam">Adam</option>
+        <option value="Matt">Matt</option>
+    </select>
+    
+    <button class="btn-primary" onclick="handleLogin()" style="max-width: 300px; width: 100%; cursor: pointer; position: relative; z-index: 100001;">Enter App</button>
+</div>
+
+    <div id="toast">Prediction Saved!</div>
+
+    <div id="screen-home" class="screen active">
+        <div class="profile-card">
+            <img src="https://upload.wikimedia.org/wikipedia/en/thumb/7/7a/Manchester_United_FC_crest.svg/120px-Manchester_United_FC_crest.svg.png" style="width:70px; margin-bottom:10px;">
+            <!-- We add onclick="enableAdmin()" so tapping the name unlocks the gate[cite: 1] -->
+<div id="prof-name" onclick="enableAdmin()" style="font-size: 28px; font-weight: 800; margin-bottom: 10px; cursor: pointer;">James</div>
+            <div id="prof-rank" class="rank-badge">Rank -</div>
+            <div id="prof-points" style="font-size: 52px; font-weight: 800;">0</div>
+            <div style="font-size: 11px; color: #8e8e93; text-transform: uppercase; font-weight: 800; margin-top: 8px;">Total Points</div>
+        </div>
+        
+        <div class="card center-text" 
+     id="next-match-card" 
+     onclick="openMatchCenter(currentMatchId)" 
+     style="border-left: 6px solid var(--red); border-right: 6px solid var(--red); cursor: pointer;">
+    <div class="fix-date" id="home-fix-date">Next Fixture • Loading...</div>
+    <div class="fix-teams" id="home-fix-teams">-- vs --</div>
+    <div class="fix-sub" id="home-fix-sub">-- • --</div>
+    <div style="font-size: 10px; color: var(--red); font-weight: 800; margin-top: 10px; text-transform: uppercase;">
+        Tap for Match Centre ➔
+    </div>
+</div>
+        
+        <div id="prediction-preview" class="card center-text">
+            <div class="fix-date">Your Active Prediction</div>
+            <div class="preview-score" id="preview-score-text">0 - 0</div>
+            <div class="preview-scorer" id="preview-scorer-text">-</div>
+        </div>
+
+        <div id="prediction-deadline-msg" style="display:none; text-align:center; font-size:11px; font-weight:700; color:#ff9500; margin: 0 16px 6px 16px; padding: 6px 12px; background:#fff8ee; border-radius:8px; border:1px solid #ffe0a0;"></div>
+        <button id="btn-home-predict" class="btn-primary" onclick="openPredictionModal()">Make Prediction</button>
+        <div id="prediction-locked-msg" style="display:none; text-align:center; font-size:12px; font-weight:700; color:#8e8e93; margin: 0 16px 12px 16px; padding: 10px; background:#f5f5f7; border-radius:10px;">🔒 Prediction deadline has passed</div>
+
+        <div class="section-label">Last Match</div>
+<div class="card center-text" onclick="switchScreen('screen-match')" style="border-left: 6px solid var(--text-main); border-right: 6px solid var(--text-main);">
+    <div class="fix-date" id="last-fix-date">Loading...</div>
+    <div class="fix-teams" id="last-fix-teams">-- vs --</div>
+    <div class="fix-sub" id="last-fix-sub" style="color: var(--red); font-weight: 700;">Tap to view stats & predictions ➔</div>
+</div>
+
+        <div class="gap-flex" style="margin-top: 16px;">
+    <div class="card w-50" style="margin: 0; height: 220px; display: flex; flex-direction: column; overflow: hidden;">
+        <div class="fix-date">Leaderboard</div>
+        <div style="flex-grow: 1; overflow-y: auto;">
+            <table class="slick-table" id="leaderboard-table" style="font-size: 12px; width: 100%;">
+                <tr><td colspan="3" style="text-align:center; padding:20px; color:#888;">Loading...</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="card w-50" style="margin: 0; cursor: pointer; background: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 20px 15px; height: 220px; border: 1px solid #e5e5ea;" onclick="switchScreen('screen-table')">
+        
+        <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center;">
+            <img src="https://upload.wikimedia.org/wikipedia/en/f/f2/Premier_League_Logo.svg" style="width: 95px; height: auto;">
+        </div>
+        
+        <div style="font-size: 11px; font-weight: 800; color: #3d195b; text-transform: uppercase; letter-spacing: 0.5px; border-top: 1px solid #f2f2f7; width: 100%; text-align: center; padding-top: 12px;">
+            Full Table ➔
+        </div>
+    </div>
+</div>
+
+            </div> </div>
+    
+<div id="screen-table" class="screen" style="display:none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #121212; z-index: 99999; overflow-y: auto;">
+    <div style="padding: 20px; display: flex; align-items: center; background: #1a1a1a; border-bottom: 2px solid #da291c;">
+        <button onclick="switchScreen('screen-home')" style="background: #da291c; border: none; color: white; padding: 10px 15px; border-radius: 8px; font-weight: bold; cursor: pointer;">BACK</button>
+        <h1 style="color: white; margin: 0; font-size: 20px; margin-left: 20px;">League Table</h1>
+    </div>
+    <div style="padding: 10px; height: 1100px;">
+        <iframe 
+            src="https://widgets.sofascore.com/embed/tournament/1/season/76986/standings/Premier%20League%2025%2F26?widgetTitle=&showCompetitionLogo=true" 
+            style="width: 100% !important; height: 1100px !important; border: none; border-radius: 12px; background: white; display: block;" 
+            frameborder="0" 
+            scrolling="no">
+        </iframe>
+    </div>
+</div>
+    <div id="screen-fixtures" class="screen">
+    <div class="page-title">Fixtures & Results</div>
+    
+    <div style="padding: 0 16px;">
+        <button class="btn-primary btn-full btn-close" id="btn-toggle-history" onclick="toggleHistory()" style="margin: 0 0 10px 0; font-size: 11px;">+ View Previous Results</button>
+    </div>
+    <div id="history-section" style="display: none;">
+        <div id="list-history"></div>
+        <hr style="border: 0; border-top: 1px solid #e5e5ea; margin: 20px 16px;">
+    </div>
+
+    <div class="section-label">Last Match</div>
+    <div id="list-last-match"></div>
+
+    <div class="section-label">Remaining Fixtures</div>
+    <div id="list-upcoming"></div>
+</div>
+
+    <div id="screen-match" class="screen" style="display: none;">
+    <div onclick="switchScreen('screen-fixtures')" style="position: absolute; top: 20px; left: 15px; color: var(--red); font-weight: 800; cursor: pointer; font-size: 14px; z-index: 10;">
+        ✕ BACK
+    </div>
+    <div class="page-title">Match Centre</div>
+
+    <div id="match-predictions-row" style="display: flex; overflow-x: auto; gap: 10px; padding: 0 16px 20px 16px; scrollbar-width: none;">
+        </div>
+
+    <div class="mini-tabs">
+        <div class="m-tab active" onclick="switchMatchTab('lineups', this)">Starting Lineups</div>
+        <div class="m-tab" onclick="switchMatchTab('stats', this)">Stats</div>
+        <div class="m-tab" onclick="switchMatchTab('highlights', this)">Highlights</div>
+    </div>
+
+    <div id="tab-lineups" class="m-content active">
+        <iframe id="iframe-lineups" src="" style="width:100%; height:600px; border:none; background:white; border-radius:12px;" frameborder="0" scrolling="no"></iframe>
+    </div>
+
+    <div id="tab-stats" class="m-content">
+        <div id="stats-container" style="padding: 0 4px;">
+            <div style="text-align:center; padding: 40px; color: var(--text-muted); font-size: 14px;">Select a finished match to view stats</div>
+        </div>
+    </div>
+
+    <div id="tab-highlights" class="m-content">
+    <div class="card" style="padding:0; background:#000; overflow:hidden; border-radius:12px;">
+        <video id="native-video-player" controls style="width:100%; aspect-ratio:16/9; display:block;">
+            <source src="" type="video/mp4">
+        </video>
+    </div>
+</div>
+ 
+        
+        <div id="tab-lineups" class="m-content">
+            <div class="row-flex">
+                <div class="card w-50 center-text" style="margin: 0 8px 0 0;"><strong style="font-size: 14px;">Chelsea</strong><div class="fix-sub" style="line-height: 2;">1. Sanchez<br>24. James<br>6. Silva</div></div>
+                <div class="card w-50 center-text" style="margin: 0 0 0 8px;"><strong style="font-size: 14px; color: var(--red);">Man Utd</strong><div class="fix-sub" style="line-height: 2;">24. Onana<br>20. Dalot<br>6. Martinez</div></div>
+            </div>
+        </div>
+
+        <div id="tab-video" class="m-content">
+            <div style="background: black; border-radius: 16px; height: 180px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800;">▶ PLAY HIGHLIGHTS</div>
+        </div>
+    </div>
+
+    <div id="screen-squad" class="screen">
+    <div class="page-title">First Team Squad</div>
+
+    <div class="squad-section-header">Goalkeepers</div>
+    <div id="squad-gk"></div>
+
+    <div class="squad-section-header">Defenders</div>
+    <div id="squad-df"></div>
+
+    <div class="squad-section-header">Midfielders</div>
+    <div id="squad-mf"></div>
+
+    <div class="squad-section-header">Forwards</div>
+    <div id="squad-fw"></div>
+</div>
+
+    <div id="screen-media" class="screen" style="display: none;">
+    <div class="page-title">Media</div>
+
+    <!-- LATEST SCORES -->
+    <div class="media-section-title">Latest Scores</div>
+    <div class="media-float-btn" onclick="window.open('https://www.sofascore.com/team/football/manchester-united/35', '_blank')">
+        <div>
+            <div class="media-float-label">Sofascore</div>
+            <div class="media-float-sub">Live scores, stats and lineups</div>
+        </div>
+        <span class="media-float-pill">Open</span>
+    </div>
+
+    <!-- UNITED SOCIALS -->
+    <div class="media-section-title">United Socials</div>
+    <div class="media-social-grid">
+        <div class="media-social-btn" onclick="window.open('https://twitter.com/ManUtd', '_blank')">
+            <img src="https://cdn-icons-png.flaticon.com/512/3256/3256013.png" alt="X">
+            <span>X</span>
+        </div>
+        <div class="media-social-btn" onclick="window.open('https://www.instagram.com/manchesterunited', '_blank')">
+            <img src="https://cdn-icons-png.flaticon.com/512/174/174855.png" alt="Insta">
+            <span>Insta</span>
+        </div>
+        <div class="media-social-btn" onclick="window.open('https://www.youtube.com/@manutd', '_blank')">
+            <img src="https://cdn-icons-png.flaticon.com/512/1384/1384060.png" alt="YouTube">
+            <span>YouTube</span>
+        </div>
+        <div class="media-social-btn" onclick="window.open('https://www.tiktok.com/@manutd', '_blank')">
+            <img src="https://cdn-icons-png.flaticon.com/512/3046/3046121.png" alt="TikTok">
+            <span>TikTok</span>
+        </div>
+    </div>
+
+    <!-- PODCASTS -->
+    <div class="media-section-title">Podcasts</div>
+    <div class="media-float-btn" onclick="window.open('https://podcasts.apple.com/gb/podcast/talk-of-the-devils-the-athletic-fcs-manchester-united-show/id1495072403', '_blank')">
+        <div>
+            <div class="media-float-label">Talk of the Devils</div>
+            <div class="media-float-sub">The Athletic</div>
+        </div>
+        <span class="media-float-pill dark">Listen</span>
+    </div>
+    <div class="media-float-btn" onclick="window.open('https://podcasts.apple.com/mm/podcast/manchester-united-podcast-by-stretford-paddock/id1456182249', '_blank')">
+        <div>
+            <div class="media-float-label">Stretford Paddock</div>
+            <div class="media-float-sub">Daily United content</div>
+        </div>
+        <span class="media-float-pill dark">Listen</span>
+    </div>
+    <div class="media-float-btn" onclick="window.open('https://podcasts.apple.com/gb/podcast/the-good-days-are-coming-a-manchester-united-podcast/id1833675045', '_blank')">
+        <div>
+            <div class="media-float-label">Good Days Are Coming</div>
+            <div class="media-float-sub">Moorhouse, Noz and Jim White</div>
+        </div>
+        <span class="media-float-pill dark">Listen</span>
+    </div>
+
+    <!-- LATEST NEWS -->
+    <div class="media-section-title">Latest News</div>
+    <div class="media-float-btn" onclick="window.open('https://www.bbc.co.uk/sport/football/teams/manchester-united', '_blank')">
+        <div>
+            <div class="media-float-label">BBC Sport</div>
+            <div class="media-float-sub">News, results and fixtures</div>
+        </div>
+        <span class="media-float-pill">Link</span>
+    </div>
+    <div class="media-float-btn" onclick="window.open('https://www.skysports.com/manchester-united', '_blank')">
+        <div>
+            <div class="media-float-label">Sky Sports</div>
+            <div class="media-float-sub">Transfer news and match coverage</div>
+        </div>
+        <span class="media-float-pill">Link</span>
+    </div>
+    <div class="media-float-btn" style="margin-bottom:24px;" onclick="window.open('https://www.manutd.com/en/news', '_blank')">
+        <div>
+            <div class="media-float-label">Official Site</div>
+            <div class="media-float-sub">ManUtd.com — club news</div>
+        </div>
+        <span class="media-float-pill">Link</span>
+    </div>
+
+</div>
+
+    <div id="screen-admin" class="screen">
+    <div class="page-title">Admin</div>
+
+    <div class="admin-section">
+        <div class="admin-section-header" onclick="adminToggle('panel-result')">
+            Enter Match Result
+            <span class="admin-chevron" id="panel-result-chevron">›</span>
+        </div>
+        <div class="admin-panel" id="panel-result">
+            <select id="admin-fixture-select" class="select-input" onchange="adminLoadFixture(this.value)">
+                <option value="">-- Select Fixture --</option>
+            </select>
+            <div id="admin-result-form" style="display:none;">
+                <div style="font-weight:800; font-size:13px; text-align:center; margin-bottom:12px;" id="admin-fixture-label"></div>
+                <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">Score</div>
+                <div class="input-group" style="margin-bottom:12px;">
+                    <input type="number" id="admin-home-score" class="score-input" placeholder="HOM" min="0">
+                    <input type="number" id="admin-away-score" class="score-input" placeholder="AWY" min="0">
+                </div>
+                <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">First Goalscorer</div>
+                <select id="admin-scorer-select" class="select-input">
+                    <option value="None">None</option>
+                </select>
+                <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">Match Status</div>
+                <select id="admin-status-select" class="select-input">
+                    <option value="finished">Finished</option>
+                    <option value="upcoming">Upcoming</option>
+                </select>
+                <button class="btn-primary btn-full" onclick="adminSaveResult()">Save Result</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-section" id="admin-stats-card" style="display:none;">
+        <div class="admin-section-header" onclick="adminToggle('panel-stats')">
+            Upload Stats Image
+            <span class="admin-chevron" id="panel-stats-chevron">›</span>
+        </div>
+        <div class="admin-panel" id="panel-stats">
+            <div id="admin-stats-preview" style="display:none; margin-bottom:10px;">
+                <img id="admin-stats-img" src="" style="width:100%; border-radius:12px;" />
+            </div>
+            <div style="background:#f5f5f7; border:2px dashed #e5e5ea; border-radius:10px; padding:14px; text-align:center; margin-bottom:10px;">
+                <input type="file" id="admin-stats-upload" accept="image/*" onchange="adminPreviewStats(this)">
+            </div>
+            <button class="btn-primary btn-full" style="background:#34c759;" onclick="adminSaveStatsImage()">Upload Stats Image</button>
+        </div>
+    </div>
+
+    <div class="admin-section">
+        <div class="admin-section-header" onclick="adminToggle('panel-add-player')">
+            Add Player
+            <span class="admin-chevron" id="panel-add-player-chevron">›</span>
+        </div>
+        <div class="admin-panel" id="panel-add-player">
+            <input type="number" id="admin-player-number" class="select-input" placeholder="Squad number">
+            <input type="text" id="admin-player-name" class="select-input" placeholder="Full name">
+            <select id="admin-player-position" class="select-input">
+                <option value="">-- Position --</option>
+                <option value="GK">Goalkeeper</option>
+                <option value="DF">Defender</option>
+                <option value="MF">Midfielder</option>
+                <option value="FW">Forward</option>
+            </select>
+            <input type="text" id="admin-player-nationality" class="select-input" placeholder="Nationality">
+            <input type="date" id="admin-player-dob" class="select-input">
+            <input type="text" id="admin-player-stats-url" class="select-input" placeholder="Stats URL">
+            <button class="btn-primary btn-full" style="background:#34c759;" onclick="adminAddPlayer()">Add Player</button>
+        </div>
+    </div>
+
+    <div class="admin-section">
+        <div class="admin-section-header" onclick="adminToggle('panel-delete-player'); adminLoadSquadForDelete();">
+            Delete Player
+            <span class="admin-chevron" id="panel-delete-player-chevron">›</span>
+        </div>
+        <div class="admin-panel" id="panel-delete-player">
+            <select id="admin-delete-player-select" class="select-input">
+                <option value="">-- Select Player --</option>
+            </select>
+            <button class="btn-primary btn-full btn-close" onclick="adminDeletePlayer()">Delete Player</button>
+        </div>
+    </div>
+
+    <div class="admin-section">
+        <div class="admin-section-header" onclick="adminToggle('panel-account')">
+            Account Switcher
+            <span class="admin-chevron" id="panel-account-chevron">›</span>
+        </div>
+        <div class="admin-panel" id="panel-account">
+            <select id="admin-user-switch" class="select-input" onchange="adminSwitchUser(this.value)">
+                <option value="">-- Select User --</option>
+                <option value="Matt">Matt</option>
+                <option value="James">James</option>
+                <option value="Adam">Adam</option>
+            </select>
+            <button class="btn-primary btn-full btn-close" onclick="try{localStorage.removeItem('mufc_user');}catch(e){} location.reload();">Log Out</button>
+        </div>
+    </div>
+
+</div>
+
+    <div class="modal-overlay" id="predModal">
+        <div class="modal-content">
+            <div id="modal-match-title" style="font-size: 18px; font-weight: 800; text-align: center; margin-bottom: 20px;">Loading...</div>
+            <div style="font-size: 12px; text-align: center; color: var(--text-muted); margin-bottom: 15px; font-weight: 700; text-transform: uppercase;">Predicted Score</div>
+            
+            <div class="input-group">
+                <input type="number" id="input-home" class="score-input" placeholder="MUN" min="0">
+                <input type="number" id="input-away" class="score-input" placeholder="BRE" min="0">
+            </div>
+
+            <div style="font-size: 12px; text-align: center; color: var(--text-muted); margin-bottom: 15px; font-weight: 700; text-transform: uppercase;">First Goalscorer</div>
+<select id="input-scorer" class="select-input">
+    <option>Loading players...</option>
+</select>
+
+            <button class="btn-primary btn-full" onclick="closePredictionModal(true)">Save Prediction</button>
+<button class="btn-primary btn-full btn-close" onclick="closePredictionModal(false)">Cancel</button>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="switchScreen('screen-home', this)">Home</div>
+        <div class="nav-item" onclick="switchScreen('screen-fixtures', this)">Fixtures</div>
+        <div class="nav-item" onclick="switchScreen('screen-squad', this)">Squad</div>
+        <div class="nav-item" onclick="switchScreen('screen-media', this)">Media</div>
+        <div class="nav-item" onclick="switchScreen('screen-admin', this)">Admin</div>
+    </div>
+    
+    <script>
+        // FIX: Added Initialization logic for Supabase
+        const SUPABASE_URL = 'https://svnbsbrlnjcimoaxtajm.supabase.co'; 
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bmJzYnJsbmpjaW1vYXh0YWptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NzQxMjEsImV4cCI6MjA5MjM1MDEyMX0.AfiphZzXN6WMaKYl3MikLsOE6FYaD6ysK6VwVka8pts';
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let masterAdminOverride = false; // This is our "Secret Key"
+
+let currentUser = null; try { currentUser = localStorage.getItem('mufc_user') || null; } catch(e) {}
+let currentMatchId = null;
+let currentMatchLabel = null; // stores "Home vs Away" for modal title
+let currentPrediction = null; // stores existing prediction for edit pre-fill 
+
+/**
+ * Handles navigation between screens with an added security check for the Admin tab.
+ */
+function switchScreen(screenId) {
+    // SECURITY GATE: Check name OR if the secret override is active[cite: 1]
+    if (screenId === 'screen-admin') {
+        if (currentUser !== 'Matt' && !masterAdminOverride) {
+            showToast("Access Denied: Admins Only");
+            return; 
+        }
+        adminLoadFixtures(); // Populate fixture dropdown each time admin is opened
+        adminLoadSquadForDelete(); // Populate delete player dropdown
+    }
+
+    document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+    const target = document.getElementById(screenId);
+    if (target) target.style.display = 'block';
+    
+    document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+    const activeNav = document.querySelector(`.nav-item[onclick*="${screenId}"]`);
+    if (activeNav) activeNav.classList.add('active');
+    window.scrollTo(0, 0);
+}
+
+function switchMatchTab(tabName, tabElement) {
+    document.querySelectorAll('.m-content').forEach(content => content.classList.remove('active'));
+    document.querySelectorAll('.m-tab').forEach(tab => tab.classList.remove('active'));
+    document.getElementById('tab-' + tabName).classList.add('active');
+    tabElement.classList.add('active');
+}
+
+async function openMatchCentre(matchCustomId, sofaId, statsUrl, videoUrl) {
+    if (!matchCustomId) return;
+    const searchId = matchCustomId.toString();
+
+    // 1. Reset UI
+    document.getElementById('match-predictions-row').innerHTML = '<div style="font-size:12px; color:#888; padding-left:16px;">Loading predictions...</div>';
+    document.querySelectorAll('.m-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.m-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector('.m-tab').classList.add('active');
+    document.getElementById('tab-lineups').classList.add('active');
+
+    // 2. Set Content (lineups iframe - only if element exists)
+    const iframeLineups = document.getElementById('iframe-lineups');
+    if (iframeLineups && sofaId) {
+        iframeLineups.src = `https://widgets.sofascore.com/embed/lineups?id=${sofaId}&widgetTheme=light`;
+    }
+    
+    // 3. Video Logic
+    const videoPlayer = document.getElementById('native-video-player');
+    const highlightsTabBtn = document.querySelector('.m-tab[onclick*="highlights"]');
+    if (videoUrl && videoUrl !== 'undefined' && videoUrl !== '' && videoUrl !== 'null') {
+        videoPlayer.src = videoUrl;
+        videoPlayer.load(); 
+        highlightsTabBtn.style.display = 'block'; 
+    } else {
+        videoPlayer.src = "";
+        highlightsTabBtn.style.display = 'none'; 
+    }
+
+    // 4. Fetch Actual Result and Predictions
+    const [fixtureRes, predsRes] = await Promise.all([
+        supabaseClient.from('fixtures').select('home_score, away_score, actual_scorer, home_team, away_team, match_date, status, stats_image').eq('custom_id', searchId).maybeSingle(),
+        supabaseClient.from('predictions').select('*').eq('match_id', searchId)
+    ]);
+
+    const fixture = fixtureRes.data;
+    const preds = predsRes.data;
+    const row = document.getElementById('match-predictions-row');
+    row.innerHTML = ''; 
+
+    if (preds && preds.length > 0) {
+        // We'll track if any updates were made to trigger a leaderboard refresh
+        let needsLeaderboardUpdate = false;
+
+        for (const p of preds) {
+            let calculatedPoints = 0;
+
+            if (fixture && fixture.home_score !== null && fixture.away_score !== null) {
+                const actualH = parseInt(fixture.home_score);
+                const actualA = parseInt(fixture.away_score);
+                const predH = parseInt(p.pred_home);
+                const predA = parseInt(p.pred_away);
+
+                if (predH === actualH && predA === actualA) {
+                    // Exact score: 5 pts
+                    calculatedPoints = 5;
+                } else if ((predH - predA) === (actualH - actualA)) {
+                    // Correct result + correct goal difference: 2 pts
+                    calculatedPoints = 2;
+                } else if (
+                    (predH > predA && actualH > actualA) || 
+                    (predH < predA && actualH < actualA) || 
+                    (predH === predA && actualH === actualA)
+                ) {
+                    // Correct result only: 1 pt
+                    calculatedPoints = 1;
+                }
+
+                // Bonus: correct first goalscorer: +3 pts (not awarded if both are "None")
+                if (fixture.actual_scorer && p.pred_scorer &&
+                    p.pred_scorer.toLowerCase() === fixture.actual_scorer.toLowerCase() &&
+                    p.pred_scorer.toLowerCase() !== 'none') {
+                    calculatedPoints += 3;
+                }
+            }
+
+            // Work out score label for display
+            let scoreLabel = '';
+            let scorerCorrect = false;
+            if (fixture && fixture.home_score !== null && fixture.away_score !== null) {
+                const aH = parseInt(fixture.home_score);
+                const aA = parseInt(fixture.away_score);
+                const pH = parseInt(p.pred_home);
+                const pA = parseInt(p.pred_away);
+                if (pH === aH && pA === aA) {
+                    scoreLabel = '⚽ Exact Score';
+                } else if ((pH - pA) === (aH - aA)) {
+                    scoreLabel = '✓ Correct GD';
+                } else if ((pH > pA && aH > aA) || (pH < pA && aH < aA) || (pH === pA && aH === aA)) {
+                    scoreLabel = '✓ Correct Result';
+                } else {
+                    scoreLabel = '✗ No Points';
+                }
+                scorerCorrect = !!(fixture.actual_scorer && p.pred_scorer &&
+                    p.pred_scorer.toLowerCase() === fixture.actual_scorer.toLowerCase() &&
+                    p.pred_scorer.toLowerCase() !== 'none');
+            }
+
+            // If the calculated points differ from what's in the DB, update Supabase
+            if (p.points_won !== calculatedPoints) {
+                await supabaseClient
+                    .from('predictions')
+                    .update({ points_won: calculatedPoints })
+                    .eq('id', p.id);
+                needsLeaderboardUpdate = true;
+            }
+
+            row.innerHTML += `
+                <div class="card" style="min-width: 130px; margin: 0; padding: 12px; text-align: center; flex-shrink: 0; border: 1px solid #e5e5ea;">
+                    <div style="font-weight: 800; font-size: 11px; text-transform: uppercase;">${p.user_name}</div>
+                    <div style="font-size: 10px; color: var(--red); font-weight: 700;">${calculatedPoints} pts</div>
+                    <div style="font-size: 18px; font-weight: 800; margin: 5px 0;">${p.pred_home}-${p.pred_away}</div>
+                    <div style="font-size: 10px; font-weight: 600; color: var(--text-muted);">${scoreLabel}</div>
+                    <div style="font-size: 10px; font-weight: 700; margin-top: 4px; color: ${scorerCorrect ? '#34c759' : 'var(--text-muted)'};">
+                        ${p.pred_scorer || '-'}${scorerCorrect ? ' ⚽+3' : ''}
+                    </div>
+                </div>`;
+        }
+
+        // Refresh the main leaderboard if points changed[cite: 1]
+        if (needsLeaderboardUpdate) {
+            refreshUsers();
+        }
+
+    } else {
+        row.innerHTML = '<div style="font-size:12px; color:#888; padding-left:16px;">No predictions found.</div>';
+    }
+    // Load match stats via API
+    loadMatchStats(fixtureRes.data);
+
+    switchScreen('screen-match');
+}
+
+// ── HELPER: parse a fixture's kickoff into a JS Date ────────────────────────
+function parseKickoffDate(matchDate, kickoffTime) {
+    // matchDate e.g. "Sun, 3 May 2026"  kickoffTime e.g. "15:00 BST" or "15:00"
+    const cleanTime = (kickoffTime || '').replace(/[A-Z]{2,4}/g, '').trim(); // strip BST/GMT
+    const dateStr = `${matchDate} ${cleanTime}`;
+    const parsed = new Date(dateStr);
+    return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+// ── HELPER: format deadline nicely ──────────────────────────────────────────
+function formatDeadline(date) {
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const hh = String(date.getHours()).padStart(2,'0');
+    const mm = String(date.getMinutes()).padStart(2,'0');
+    return `${hh}:${mm}, ${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+// ── HELPER: update prediction button state based on deadline ─────────────────
+function updatePredictionLockState(kickoffDate) {
+    const btn = document.getElementById('btn-home-predict');
+    const deadlineMsg = document.getElementById('prediction-deadline-msg');
+    const lockedMsg = document.getElementById('prediction-locked-msg');
+    if (!btn || !deadlineMsg || !lockedMsg) return;
+
+    if (!kickoffDate) return;
+
+    const deadline = new Date(kickoffDate.getTime() - 2 * 60 * 60 * 1000); // 2hrs before kickoff
+    const now = new Date();
+
+    if (now >= deadline) {
+        // Locked
+        btn.style.display = 'none';
+        deadlineMsg.style.display = 'none';
+        lockedMsg.style.display = 'block';
+    } else {
+        // Open
+        btn.style.display = 'block';
+        lockedMsg.style.display = 'none';
+        deadlineMsg.style.display = 'block';
+        deadlineMsg.textContent = `Prediction deadline: ${formatDeadline(deadline)}`;
+    }
+}
+
+async function fetchNextFixture() {
+    try {
+        const now = new Date();
+        const threeHoursMs = 3 * 60 * 60 * 1000;
+
+        // Fetch all upcoming fixtures
+        const { data: upcomingData } = await supabaseClient
+            .from('fixtures').select('*').eq('status', 'upcoming').order('id', { ascending: true });
+
+        // Fetch all finished fixtures
+        const { data: finishedData } = await supabaseClient
+            .from('fixtures').select('*').eq('status', 'finished').order('id', { ascending: false });
+
+        // ── NEXT MATCH LOGIC ──────────────────────────────────────────────────
+        // Find the first upcoming fixture that is not within 3hrs post-kickoff
+        // (i.e. not one that just kicked off and should still show as "current")
+        let nextFixture = null;
+        let currentFixture = null; // fixture in the 3hr window after kickoff
+
+        if (upcomingData && upcomingData.length > 0) {
+            for (const f of upcomingData) {
+                const ko = parseKickoffDate(f.match_date, f.kickoff_time);
+                if (!ko) { nextFixture = nextFixture || f; continue; }
+                const msSinceKickoff = now - ko;
+                if (msSinceKickoff > 0 && msSinceKickoff < threeHoursMs) {
+                    // Match is "in progress" (within 3hr window)
+                    currentFixture = f;
+                    break;
+                } else if (ko > now) {
+                    // Future fixture
+                    nextFixture = nextFixture || f;
+                }
+            }
+        }
+
+        const displayFixture = currentFixture || nextFixture;
+
+        if (displayFixture) {
+            const m = displayFixture;
+            currentMatchId = m.custom_id || m.id;
+            const nextCard = document.getElementById('next-match-card');
+            nextCard.setAttribute('onclick', `openMatchCentre('${currentMatchId}', '${m.sofascore_id}', '${m.stats_url || ''}', '${m.highlights_url || ''}')`);
+            document.getElementById('home-fix-date').innerText = `Next Fixture • ${m.match_date}`;
+            document.getElementById('home-fix-teams').innerText = `${m.home_team} vs ${m.away_team}`;
+            currentMatchLabel = `${m.home_team} vs ${m.away_team}`;
+            document.getElementById('home-fix-sub').innerText = `${m.stadium} • ${m.kickoff_time}`;
+
+            // Update prediction lock state
+            const ko = parseKickoffDate(m.match_date, m.kickoff_time);
+            updatePredictionLockState(ko);
+        }
+
+        // ── LAST MATCH LOGIC ─────────────────────────────────────────────────
+        // Check if the most recent upcoming fixture has just finished (within 3hr window)
+        // If so, treat it as last match with "awaiting score" if no score entered
+        let lastFixture = null;
+        let awaitingScore = false;
+
+        if (upcomingData && upcomingData.length > 0) {
+            const mostRecentUpcoming = upcomingData[0];
+            const ko = parseKickoffDate(mostRecentUpcoming.match_date, mostRecentUpcoming.kickoff_time);
+            if (ko) {
+                const msSinceKickoff = now - ko;
+                if (msSinceKickoff >= threeHoursMs) {
+                    // 3hrs have passed - this match should now show as last match
+                    lastFixture = mostRecentUpcoming;
+                    awaitingScore = true;
+                }
+            }
+        }
+
+        // Fall back to most recent finished fixture
+        if (!lastFixture && finishedData && finishedData.length > 0) {
+            lastFixture = finishedData[0];
+        }
+
+        if (lastFixture) {
+            const l = lastFixture;
+            const lastCard = document.querySelector('#screen-home .card[onclick*="screen-match"]');
+            if (lastCard) {
+                lastCard.setAttribute('onclick', `openMatchCentre('${l.custom_id}', '${l.sofascore_id}', '${l.stats_url || ''}', '${l.highlights_url || ''}')`);
+            }
+            if (awaitingScore) {
+                document.getElementById('last-fix-date').innerText = `${l.match_date} • Full Time`;
+                document.getElementById('last-fix-teams').innerText = `${l.home_team} vs ${l.away_team}`;
+                document.getElementById('last-fix-sub').innerText = `⏳ Awaiting final score...`;
+            } else {
+                document.getElementById('last-fix-date').innerText = `${l.match_date} • Full Time`;
+                document.getElementById('last-fix-teams').innerText = `${l.home_team} ${l.home_score} - ${l.away_score} ${l.away_team}`;
+            }
+        }
+    } catch (err) { console.error("Fixture Error:", err); }
+}
+
+async function fetchAllFixtures() {
+    try {
+        const { data, error } = await supabaseClient.from('fixtures').select('*').order('id', { ascending: true });
+        if (error) throw error;
+        const histCont = document.getElementById('list-history');
+        const lastCont = document.getElementById('list-last-match');
+        const upcoCont = document.getElementById('list-upcoming');
+        histCont.innerHTML = ''; lastCont.innerHTML = ''; upcoCont.innerHTML = '';
+
+        const finished = data.filter(f => f.status === 'finished');
+        const upcoming = data.filter(f => f.status === 'upcoming');
+
+        if (finished.length > 0) {
+            const last = finished[finished.length - 1];
+            lastCont.innerHTML = `<div class="card row-flex" onclick="openMatchCentre('${last.custom_id}', '${last.sofascore_id}', '${last.stats_url || ''}', '${last.highlights_url || ''}')">
+                <div><div class="fix-date">${last.match_date}</div><div class="fix-teams">${last.home_team} ${last.home_score} - ${last.away_score} ${last.away_team}</div></div>
+                <div style="font-weight: 800; color: var(--red);">➔</div></div>`;
+            
+            finished.slice(0, -1).forEach(f => {
+                histCont.innerHTML += `<div class="card row-flex" style="border-left: 4px solid #8e8e93; opacity: 0.8; margin-bottom: 8px; padding: 12px 20px;" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')">
+                    <div><div class="fix-date" style="font-size: 10px;">${f.match_date}</div><div class="fix-teams" style="font-size: 14px;">${f.home_team} ${f.home_score}-${f.away_score} ${f.away_team}</div></div>
+                    <div style="font-weight: 800; color: var(--red);">➔</div></div>`;
+            });
+        }
+        upcoming.forEach(f => {
+            upcoCont.innerHTML += `<div class="card row-flex" style="border-left: 4px solid var(--red)" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')">
+                <div><div class="fix-date">${f.match_date} • ${f.kickoff_time}</div><div class="fix-teams">${f.home_team} vs ${f.away_team}</div><div class="fix-sub">${f.competition} • ${f.stadium}</div></div>
+                <div style="font-weight: 800; color: var(--red);">➔</div></div>`;
+        });
+    } catch (err) { console.error("Fixtures List Error:", err); }
+}
+
+async function refreshUsers() {
+    // Force the name to update immediately from your variable
+    const nameDisplay = document.getElementById('prof-name');
+    if (nameDisplay) nameDisplay.innerText = currentUser;
+
+    // Calculate totals directly from predictions table
+    const { data: preds } = await supabaseClient
+        .from('predictions')
+        .select('user_name, points_won');
+
+    if (!preds) return;
+
+    // Sum points per user
+    const totals = {};
+    preds.forEach(p => {
+        if (!totals[p.user_name]) totals[p.user_name] = 0;
+        totals[p.user_name] += (parseInt(p.points_won) || 0);
+    });
+
+    // Write updated totals back to leaderboard table
+    for (const [userName, pts] of Object.entries(totals)) {
+        await supabaseClient
+            .from('leaderboard')
+            .update({ total_points: pts })
+            .eq('user_name', userName);
+    }
+
+    // Sort for display
+    const sorted = Object.entries(totals)
+        .map(([user_name, total_points]) => ({ user_name, total_points }))
+        .sort((a, b) => b.total_points - a.total_points);
+
+    const table = document.getElementById('leaderboard-table');
+    if (table) {
+        table.innerHTML = '<tr><th>Pos</th><th>User</th><th class="num">Pts</th></tr>';
+        sorted.forEach((user, index) => {
+            const isMe = user.user_name === currentUser;
+            table.innerHTML += `<tr class="${isMe ? 'highlight-row' : ''}">
+                <td class="rank">${index + 1}</td>
+                <td>${user.user_name}</td>
+                <td class="num">${user.total_points}</td>
+            </tr>`;
+            if (isMe) {
+                document.getElementById('prof-points').innerText = user.total_points;
+                document.getElementById('prof-rank').innerText = `Rank ${index + 1}`;
+            }
+        });
+    }
+}
+
+async function fetchSquad() {
+    const { data: players } = await supabaseClient.from('squad').select('*').order('name', { ascending: true });
+    if (!players) return;
+    window._squadPlayers = players.filter(p => p.position !== 'GK'); // store for admin scorer dropdown
+    const dropdown = document.getElementById('input-scorer');
+    dropdown.innerHTML = '<option value="None">None</option>';
+    players.filter(p => p.position !== 'GK').forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.name; opt.innerText = `${p.number || '0'}. ${p.name}`;
+        dropdown.appendChild(opt);
+    });
+    const containers = { 'GK': 'squad-gk', 'DF': 'squad-df', 'MF': 'squad-mf', 'FW': 'squad-fw' };
+    Object.values(containers).forEach(id => document.getElementById(id).innerHTML = '');
+    players.forEach(p => {
+        const posMap = { GK: 'pos-gk', DF: 'pos-df', MF: 'pos-mf', FW: 'pos-fw' };
+        const posLabel = { GK: 'GK', DF: 'DEF', MF: 'MID', FW: 'FWD' };
+        const isGK = p.position === 'GK';
+
+        // Calculate age and format DOB
+        let ageStr = '';
+        let dobStr = '';
+        if (p.dob) {
+            const dob = new Date(p.dob);
+            const today = new Date();
+            let age = today.getFullYear() - dob.getFullYear();
+            const m = today.getMonth() - dob.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+            ageStr = `${age}`;
+            dobStr = dob.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+
+        const div = document.createElement('div');
+        div.className = 'squad-card';
+        div.innerHTML = `
+            <div class="squad-avatar ${isGK ? 'gk-avatar' : ''}">
+                ${p.number || '—'}
+            </div>
+            <div class="squad-info">
+                <div class="squad-name">${p.name}</div>
+                <span class="squad-pos-badge ${posMap[p.position] || 'pos-fw'}">${posLabel[p.position] || p.position}</span>
+                <div style="margin-top:5px; display:flex; flex-direction:column; gap:2px;">
+                    ${p.nationality ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">${p.nationality}</div>` : ''}
+                    ${dobStr ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">Born ${dobStr}${ageStr ? ` (Age ${ageStr})` : ''}</div>` : ''}
+                </div>
+            </div>
+            ${p.stats_url ? `<button class="squad-stats-btn" onclick="window.open('${p.stats_url}','_blank'); event.stopPropagation();">Stats</button>` : ''}
+        `;
+        document.getElementById(containers[p.position]).appendChild(div);
+    });
+}
+
+function toggleHistory() {
+    const section = document.getElementById('history-section');
+    const btn = document.getElementById('btn-toggle-history');
+    
+    // Check if the section is currently hidden
+    if (section.style.display === 'none') {
+        section.style.display = 'block';
+        btn.innerText = '- Hide Previous Results'; // Change text when open
+    } else {
+        section.style.display = 'none';
+        btn.innerText = '+ View Previous Results'; // Change text when closed
+    }
+}
+// 1. FIXED: Open Modal with Dynamic Team Names
+function openPredictionModal() {
+    try {
+        const modal = document.getElementById('predModal');
+        const titleEl = document.getElementById('modal-match-title');
+        const homeInput = document.getElementById('input-home');
+        const awayInput = document.getElementById('input-away');
+
+        // Use stored label (set when fixture loads) or fall back to DOM
+        let teamText = currentMatchLabel || '';
+        if (!teamText) {
+            const homeTeamsEl = document.getElementById('home-fix-teams');
+            if (homeTeamsEl && homeTeamsEl.innerText.includes('vs')) {
+                teamText = homeTeamsEl.innerText;
+            }
+        }
+        teamText = teamText || 'Next Match';
+
+        // Update modal title
+        if (titleEl) titleEl.textContent = teamText;
+
+        // Update score input placeholders
+        const teams = teamText.split(' vs ');
+        if (homeInput) homeInput.placeholder = (teams[0] || 'HOM').substring(0, 3).toUpperCase();
+        if (awayInput) awayInput.placeholder = (teams[1] || 'AWY').substring(0, 3).toUpperCase();
+
+        // Pre-fill if editing existing prediction
+        if (currentPrediction) {
+            if (homeInput) homeInput.value = currentPrediction.pred_home ?? '';
+            if (awayInput) awayInput.value = currentPrediction.pred_away ?? '';
+            const scorerDropdown = document.getElementById('input-scorer');
+            if (scorerDropdown && currentPrediction.pred_scorer) {
+                Array.from(scorerDropdown.options).forEach(opt => {
+                    opt.selected = opt.value === currentPrediction.pred_scorer;
+                });
+            }
+        } else {
+            if (homeInput) homeInput.value = '';
+            if (awayInput) awayInput.value = '';
+            const scorerDropdown = document.getElementById('input-scorer');
+            if (scorerDropdown) scorerDropdown.selectedIndex = 0;
+        }
+
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.add('active');
+        }
+    } catch (error) {
+        console.error("Modal Opening Error:", error);
+        const modal = document.getElementById('predModal');
+        if (modal) { modal.style.display = 'flex'; modal.classList.add('active'); }
+    }
+}
+
+// 2. RESTORED: The Missing Close/Save Function
+async function closePredictionModal(saved) {
+    const modal = document.getElementById('predModal');
+    if (!modal) return;
+
+    // Hide the modal immediately for better UX
+    modal.classList.remove('active');
+    setTimeout(() => { modal.style.display = 'none'; }, 300);
+    
+    if (saved) {
+        const hScore = document.getElementById('input-home').value;
+        const aScore = document.getElementById('input-away').value;
+        const scorer = document.getElementById('input-scorer').value;
+
+        if (hScore === "" || aScore === "" || !scorer) {
+            alert("Please fill in all fields before saving.");
+            modal.classList.add('active'); // Re-open if validation fails
+            modal.style.display = 'flex';
+            return;
+        }
+
+        try {
+            const { error } = await supabaseClient
+                .from('predictions')
+                .upsert([{ 
+                    user_name: currentUser, 
+                    match_id: currentMatchId.toString(), 
+                    pred_home: parseInt(hScore), 
+                    pred_away: parseInt(aScore), 
+                    pred_scorer: scorer 
+                }], { 
+                    onConflict: 'user_name,match_id' 
+                });
+
+            if (error) throw error;
+            
+            showToast("Prediction Saved! ✓");
+            checkExistingPrediction(); // Refresh the preview on the home screen
+
+        } catch (err) {
+            console.error('Save Error:', err.message);
+            alert("Error saving to database: " + err.message);
+        }
+    }
+}
+
+// Function to check if you've already predicted for the current match
+async function checkExistingPrediction() {
+    if (!currentMatchId) return;
+
+    const { data: prediction } = await supabaseClient
+        .from('predictions')
+        .select('*')
+        .eq('user_name', currentUser)
+        .eq('match_id', currentMatchId.toString())
+        .maybeSingle();
+
+    const btn = document.getElementById('btn-home-predict');
+    const preview = document.getElementById('prediction-preview');
+
+    if (prediction) {
+        currentPrediction = prediction; // store for modal pre-fill
+        btn.innerText = "Edit Prediction";
+        btn.style.background = "#1c1c1e";
+        preview.style.display = 'block';
+        document.getElementById('preview-score-text').innerText = `${prediction.pred_home} - ${prediction.pred_away}`;
+        document.getElementById('preview-scorer-text').innerText = `Scorer: ${prediction.pred_scorer}`;
+    } else {
+        currentPrediction = null;
+        btn.innerText = "Make Prediction";
+        btn.style.background = "var(--red)";
+        preview.style.display = 'none';
+    }
+
+    // Re-apply lock state in case deadline has passed
+    // Fetch kickoff from current next fixture data
+    const fixtureSubEl = document.getElementById('home-fix-sub');
+    const fixtureDateEl = document.getElementById('home-fix-date');
+    if (fixtureSubEl && fixtureDateEl) {
+        const subText = fixtureSubEl.innerText; // e.g. "Old Trafford • 15:00 BST"
+        const dateText = fixtureDateEl.innerText.replace('Next Fixture • ', '');
+        const kickoffTime = subText.includes('•') ? subText.split('•').pop().trim() : '';
+        if (kickoffTime && dateText) {
+            const ko = parseKickoffDate(dateText, kickoffTime);
+            updatePredictionLockState(ko);
+        }
+    }
+}
+
+// Helper for the "Saved!" pop-up
+function showToast(msg) {
+    const toast = document.getElementById("toast");
+    toast.innerText = msg;
+    toast.className = "show";
+    setTimeout(() => { toast.className = ""; }, 2000);
+}
+
+/**
+ * Updates the saved user in the browser and reloads the application[cite: 1].
+ */
+function adminSwitchUser(newUser) {
+    if (!newUser) return;
+    currentUser = newUser;
+    try { localStorage.setItem('mufc_user', newUser); } catch(e) {}
+    location.reload();
+}
+
+// --- APP INITIALIZATION ---
+
+// This function checks if a user is logged in. If not, it shows the login screen.
+async function initApp() {
+    const loginScreen = document.getElementById('screen-login');
+    const homeScreen = document.getElementById('screen-home');
+
+    if (!currentUser) {
+        // No user found, force the login screen
+        if (loginScreen) {
+            loginScreen.style.display = 'flex';
+            loginScreen.classList.add('active');
+        }
+        if (homeScreen) homeScreen.style.display = 'none';
+        console.log("Waiting for user login...");
+    } else {
+        // User is logged in, hide login and load data
+        if (loginScreen) {
+            loginScreen.style.display = 'none';
+            loginScreen.classList.remove('active');
+        }
+        if (homeScreen) homeScreen.style.display = 'block';
+        
+        console.log("Logged in as:", currentUser);
+
+        // Load all data for the current user
+        await fetchNextFixture(); 
+        await checkExistingPrediction();
+        refreshUsers();
+        fetchSquad();
+        fetchAllFixtures();
+    }
+}
+
+// This function handles the "Enter App" button click
+function handleLogin() {
+    const selectedUser = document.getElementById('login-username').value;
+    
+    if (selectedUser) {
+        currentUser = selectedUser;
+        try { localStorage.setItem('mufc_user', selectedUser); } catch(e) {}
+        
+        // Hide login UI
+        const loginScreen = document.getElementById('screen-login');
+        if (loginScreen) {
+            loginScreen.classList.remove('active');
+            loginScreen.style.display = 'none';
+        }
+        
+        // Boot up the app data
+        initApp();
+    }
+}
+
+/**
+ * Secretly unlocks the Admin tab for testing purposes.
+ */
+
+function adminToggle(panelId) {
+    const panel = document.getElementById(panelId);
+    const chevron = document.getElementById(panelId + '-chevron');
+    if (!panel) return;
+    const isOpen = panel.classList.contains('open');
+    panel.classList.toggle('open', !isOpen);
+    if (chevron) chevron.classList.toggle('open', !isOpen);
+}
+
+function enableAdmin() {
+    masterAdminOverride = true;
+    showToast("Admin Mode Unlocked"); // Gives you a subtle confirmation
+}
+
+
+// ── ADMIN: load all fixtures into the dropdown ──────────────────────────────
+async function adminLoadFixtures() {
+    const { data, error } = await supabaseClient
+        .from('fixtures')
+        .select('id, custom_id, home_team, away_team, match_date, home_score, away_score, actual_scorer, status, stats_image')
+        .order('id', { ascending: true });
+    if (error || !data) return;
+
+    const sel = document.getElementById('admin-fixture-select');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">-- Select Fixture --</option>';
+    data.forEach(f => {
+        const score = (f.home_score !== null && f.away_score !== null)
+            ? ` (${f.home_score}-${f.away_score})` : '';
+        const opt = document.createElement('option');
+        opt.value = f.custom_id;
+        opt.textContent = `${f.match_date} | ${f.home_team} vs ${f.away_team}${score}`;
+        sel.appendChild(opt);
+    });
+
+    // Store fixture data globally for use when loading a specific fixture
+    window._adminFixtures = data;
+}
+
+// ── ADMIN: populate form when a fixture is selected ─────────────────────────
+function adminLoadFixture(customId) {
+    const form = document.getElementById('admin-result-form');
+    if (!customId) { form.style.display = 'none'; return; }
+
+    const f = (window._adminFixtures || []).find(x => x.custom_id === customId);
+    if (!f) return;
+
+    document.getElementById('admin-fixture-label').textContent =
+        `${f.home_team} vs ${f.away_team} — ${f.match_date}`;
+    document.getElementById('admin-home-score').value = f.home_score !== null ? f.home_score : '';
+    document.getElementById('admin-away-score').value = f.away_score !== null ? f.away_score : '';
+    document.getElementById('admin-status-select').value = f.status || 'upcoming';
+
+    // Populate scorer dropdown from squad
+    const scorerSel = document.getElementById('admin-scorer-select');
+    scorerSel.innerHTML = '<option value="None">None</option>';
+    (window._squadPlayers || []).forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.name;
+        opt.textContent = p.name;
+        if (f.actual_scorer && p.name === f.actual_scorer) opt.selected = true;
+        scorerSel.appendChild(opt);
+    });
+
+    form.style.display = 'block';
+
+    // Show stats image card
+    const statsCard = document.getElementById('admin-stats-card');
+    if (statsCard) statsCard.style.display = 'block';
+
+    // Show existing stats image if already uploaded
+    if (f.stats_image) {
+        document.getElementById('admin-stats-img').src = f.stats_image;
+        document.getElementById('admin-stats-preview').style.display = 'block';
+    } else {
+        document.getElementById('admin-stats-img').src = '';
+        document.getElementById('admin-stats-preview').style.display = 'none';
+    }
+}
+
+// ── ADMIN: save result back to Supabase ─────────────────────────────────────
+async function adminSaveResult() {
+    const customId = document.getElementById('admin-fixture-select').value;
+    if (!customId) { showToast('Please select a fixture first.'); return; }
+
+    const homeScore = document.getElementById('admin-home-score').value;
+    const awayScore = document.getElementById('admin-away-score').value;
+    const scorer    = document.getElementById('admin-scorer-select').value;
+    const status    = document.getElementById('admin-status-select').value;
+
+    if (homeScore === '' || awayScore === '') {
+        showToast('Please enter a score before saving.');
+        return;
+    }
+
+    const { error } = await supabaseClient
+        .from('fixtures')
+        .update({
+            home_score:    parseInt(homeScore),
+            away_score:    parseInt(awayScore),
+            actual_scorer: scorer || null,
+            status:        status
+        })
+        .eq('custom_id', customId);
+
+    if (error) {
+        showToast('Error saving result. Check console.');
+        console.error(error);
+    } else {
+        showToast('Result saved successfully!');
+        adminLoadFixtures(); // Refresh dropdown to show updated score
+    }
+}
+
+
+// ── MATCH STATS - Image Display ─────────────────────────────────────────────
+
+function loadMatchStats(fixture) {
+    const container = document.getElementById('stats-container');
+    if (!container) return;
+
+    if (!fixture || fixture.status !== 'finished') {
+        container.innerHTML = `
+            <div style="text-align:center; padding:40px 20px;">
+                <div style="font-size:32px; margin-bottom:12px;">⏳</div>
+                <div style="font-weight:800; font-size:15px; margin-bottom:6px;">Stats Not Yet Available</div>
+                <div style="color:var(--text-muted); font-size:13px;">Stats will appear here once the match has finished.</div>
+            </div>`;
+        return;
+    }
+
+    if (fixture.stats_image) {
+        container.innerHTML = `
+            <div style="border-radius:16px; overflow:hidden; margin-bottom:8px;">
+                <img src="${fixture.stats_image}" style="width:100%; display:block; border-radius:16px;" 
+                     onerror="this.parentElement.innerHTML='<div style=\'text-align:center;padding:40px;color:var(--text-muted);\'>Stats image could not be loaded.</div>'" />
+            </div>
+            <div style="text-align:center; font-size:10px; color:var(--text-muted); padding:4px 0 12px;">Tap and hold image to save</div>`;
+    } else {
+        container.innerHTML = `
+            <div style="text-align:center; padding:40px 20px;">
+                <div style="font-size:32px; margin-bottom:12px;">📊</div>
+                <div style="font-weight:800; font-size:15px; margin-bottom:6px;">No Stats Yet</div>
+                <div style="color:var(--text-muted); font-size:13px;">Stats image will appear here once uploaded in the Admin panel.</div>
+            </div>`;
+    }
+}
+
+// ── ADMIN: Stats image preview before upload ─────────────────────────────────
+function adminPreviewStats(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        document.getElementById('admin-stats-img').src = e.target.result;
+        document.getElementById('admin-stats-preview').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+}
+
+// ── ADMIN: Upload stats image to Supabase Storage ────────────────────────────
+async function adminSaveStatsImage() {
+    const customId = document.getElementById('admin-fixture-select').value;
+    if (!customId) { showToast('Please select a fixture first.'); return; }
+
+    const fileInput = document.getElementById('admin-stats-upload');
+    if (!fileInput.files || !fileInput.files[0]) {
+        showToast('Please choose an image first.');
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const ext = file.name.split('.').pop();
+    const filePath = `stats/${customId}_stats.${ext}`;
+
+    showToast('Uploading...');
+
+    // Upload to Supabase Storage
+    const { error: uploadError } = await supabaseClient.storage
+        .from('videos')
+        .upload(filePath, file, { upsert: true, contentType: file.type });
+
+    if (uploadError) {
+        showToast('Upload failed. Check console.');
+        console.error(uploadError);
+        return;
+    }
+
+    // Get the public URL
+    const { data: urlData } = supabaseClient.storage
+        .from('videos')
+        .getPublicUrl(filePath);
+
+    const publicUrl = urlData.publicUrl;
+
+    // Save URL to fixtures table
+    const { error: dbError } = await supabaseClient
+        .from('fixtures')
+        .update({ stats_image: publicUrl })
+        .eq('custom_id', customId);
+
+    if (dbError) {
+        showToast('Image uploaded but failed to save URL. Check console.');
+        console.error(dbError);
+    } else {
+        showToast('Stats image saved successfully! ✓');
+    }
+}
+
+
+// ── ADMIN: Squad Management ──────────────────────────────────────────────────
+async function adminLoadSquadForDelete() {
+    const { data } = await supabaseClient.from('squad').select('id, name, position').order('name');
+    if (!data) return;
+    const sel = document.getElementById('admin-delete-player-select');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">-- Select Player --</option>';
+    data.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = `${p.name} (${p.position})`;
+        sel.appendChild(opt);
+    });
+}
+
+async function adminAddPlayer() {
+    const number      = document.getElementById('admin-player-number').value;
+    const name        = document.getElementById('admin-player-name').value.trim();
+    const position    = document.getElementById('admin-player-position').value;
+    const nationality = document.getElementById('admin-player-nationality')?.value.trim() || '';
+    const dob         = document.getElementById('admin-player-dob')?.value || '';
+    const statsUrl    = document.getElementById('admin-player-stats-url').value.trim();
+
+    if (!name || !position) { showToast('Please enter name and position.'); return; }
+
+    const { error } = await supabaseClient.from('squad').insert({
+        number:      number ? parseInt(number) : null,
+        name,
+        position,
+        nationality: nationality || null,
+        dob:         dob || null,
+        stats_url:   statsUrl || null
+    });
+
+    if (error) {
+        showToast('Error adding player.');
+        console.error(error);
+    } else {
+        showToast(`${name} added! ✓`);
+        ['admin-player-number','admin-player-name','admin-player-position',
+         'admin-player-nationality','admin-player-dob','admin-player-stats-url']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        fetchSquad();
+        adminLoadSquadForDelete();
+    }
+}
+
+async function adminDeletePlayer() {
+    const id = document.getElementById('admin-delete-player-select').value;
+    if (!id) { showToast('Please select a player first.'); return; }
+
+    const name = document.getElementById('admin-delete-player-select').selectedOptions[0].text;
+    if (!confirm(`Delete ${name}?`)) return;
+
+    const { error } = await supabaseClient.from('squad').delete().eq('id', id);
+    if (error) {
+        showToast('Error deleting player.');
+        console.error(error);
+    } else {
+        showToast(`${name} deleted.`);
+        fetchSquad();
+        adminLoadSquadForDelete();
+    }
+}
+
+// Run the initialization as soon as the page finishes loading
+window.addEventListener('load', initApp);
+    </script>
+</body>
+</html>
