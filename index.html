@@ -337,8 +337,41 @@
     </div>
 </div>
 
+        <!-- HISTORY SECTION -->
+        <div class="section-label">History</div>
+        <div id="history-seasons-container" style="margin-bottom: 24px;">
+            <div style="text-align:center; padding:20px; color:var(--text-muted); font-size:13px;">No previous seasons yet.</div>
+        </div>
+
             </div> </div>
     
+<div id="screen-history" class="screen" style="display:none;">
+    <div style="display:flex; align-items:center; padding:16px 16px 0 16px; margin-bottom:4px;">
+        <div onclick="switchScreen('screen-home')" style="color:var(--red); font-weight:800; font-size:14px; cursor:pointer; margin-right:12px;">✕ BACK</div>
+        <div id="history-screen-title" class="page-title" style="margin:0; flex:1;">Season History</div>
+    </div>
+
+    <!-- Winner card -->
+    <div id="history-winner-card" style="margin:16px 16px 0 16px; background:linear-gradient(135deg, #1c1c1e 0%, #000 100%); border-radius:20px; padding:24px 20px; text-align:center; color:white; box-shadow:0 10px 20px rgba(0,0,0,0.15);">
+        <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#8e8e93; margin-bottom:8px;">Season Winner</div>
+        <div id="history-winner-name" style="font-size:28px; font-weight:900; margin-bottom:8px;">—</div>
+        <div id="history-winner-points" style="font-size:48px; font-weight:800; color:var(--red);">0</div>
+        <div style="font-size:11px; color:#8e8e93; text-transform:uppercase; font-weight:800; margin-top:4px;">Total Points</div>
+    </div>
+
+    <!-- Final standings -->
+    <div class="section-label">Final Standings</div>
+    <div class="card" style="padding:16px 20px;">
+        <table class="slick-table" id="history-standings-table" style="width:100%;">
+            <tr><th>Pos</th><th>Player</th><th class="num">Pts</th></tr>
+        </table>
+    </div>
+
+    <!-- Results list -->
+    <div class="section-label">Results</div>
+    <div id="history-results-list" style="margin-bottom:24px;"></div>
+</div>
+
 <div id="screen-table" class="screen" style="display:none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #121212; z-index: 99999; overflow-y: auto;">
     <div style="padding: 20px; display: flex; align-items: center; background: #1a1a1a; border-bottom: 2px solid #da291c;">
         <button onclick="switchScreen('screen-home')" style="background: #da291c; border: none; color: white; padding: 10px 15px; border-radius: 8px; font-weight: bold; cursor: pointer;">BACK</button>
@@ -614,6 +647,18 @@
                 <option value="Adam">Adam</option>
             </select>
             <button class="btn-primary btn-full btn-close" onclick="try{localStorage.removeItem('mufc_user');}catch(e){} location.reload();">Log Out</button>
+        </div>
+    </div>
+
+    <div class="admin-section">
+        <div class="admin-section-header" onclick="adminToggle('panel-archive')">
+            Archive Season
+            <span class="admin-chevron" id="panel-archive-chevron">›</span>
+        </div>
+        <div class="admin-panel" id="panel-archive">
+            <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px; line-height:1.5;">This will save the current season to History. Use at the end of the season before adding new fixtures.</div>
+            <input type="text" id="admin-season-label" class="select-input" placeholder="Season label e.g. 2025-26">
+            <button class="btn-primary btn-full" style="background:#ff9500;" onclick="adminArchiveSeason()">Archive This Season</button>
         </div>
     </div>
 
@@ -1300,6 +1345,7 @@ async function initApp() {
         refreshUsers();
         fetchSquad();
         fetchAllFixtures();
+        loadHistorySeasons();
     }
 }
 
@@ -1600,6 +1646,171 @@ async function adminDeletePlayer() {
         fetchSquad();
         adminLoadSquadForDelete();
     }
+}
+
+
+// ── HISTORY: Load season cards on home screen ────────────────────────────────
+async function loadHistorySeasons() {
+    const { data, error } = await supabaseClient
+        .from('seasons')
+        .select('*')
+        .order('id', { ascending: false });
+
+    const container = document.getElementById('history-seasons-container');
+    if (!container) return;
+    if (!data || data.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:13px;">No previous seasons yet.</div>';
+        return;
+    }
+
+    container.innerHTML = '';
+    data.forEach(season => {
+        container.innerHTML += `
+            <div class="card row-flex" style="cursor:pointer; border-left:4px solid var(--red);" onclick="openHistoryScreen('${season.season_label}')">
+                <div>
+                    <div style="font-weight:800; font-size:15px;">${season.season_label}</div>
+                    <div style="font-size:11px; color:var(--text-muted); margin-top:3px;">Winner: ${season.winner || '—'} · ${season.winner_points || 0} pts</div>
+                </div>
+                <div style="font-weight:800; color:var(--red);">›</div>
+            </div>`;
+    });
+}
+
+// ── HISTORY: Open a season's full history screen ─────────────────────────────
+async function openHistoryScreen(seasonLabel) {
+    document.getElementById('history-screen-title').textContent = `${seasonLabel} Season`;
+
+    // Fetch fixtures for this season
+    const { data: fixtures } = await supabaseClient
+        .from('fixtures')
+        .select('*')
+        .eq('season', seasonLabel)
+        .eq('status', 'finished')
+        .order('id', { ascending: true });
+
+    // Fetch predictions for this season to calculate standings
+    const { data: preds } = await supabaseClient
+        .from('predictions')
+        .select('user_name, points_won')
+        .eq('season', seasonLabel);
+
+    // Calculate standings
+    const totals = {};
+    if (preds) {
+        preds.forEach(p => {
+            if (!totals[p.user_name]) totals[p.user_name] = 0;
+            totals[p.user_name] += (parseInt(p.points_won) || 0);
+        });
+    }
+    const standings = Object.entries(totals)
+        .map(([name, pts]) => ({ name, pts }))
+        .sort((a, b) => b.pts - a.pts);
+
+    // Update winner card
+    if (standings.length > 0) {
+        document.getElementById('history-winner-name').textContent = standings[0].name;
+        document.getElementById('history-winner-points').textContent = standings[0].pts;
+    }
+
+    // Update standings table
+    const table = document.getElementById('history-standings-table');
+    table.innerHTML = '<tr><th>Pos</th><th>Player</th><th class="num">Pts</th></tr>';
+    standings.forEach((s, i) => {
+        table.innerHTML += `<tr>
+            <td class="rank">${i + 1}</td>
+            <td>${s.name}</td>
+            <td class="num">${s.pts}</td>
+        </tr>`;
+    });
+
+    // Update results list
+    const resultsList = document.getElementById('history-results-list');
+    resultsList.innerHTML = '';
+    if (fixtures && fixtures.length > 0) {
+        fixtures.forEach(f => {
+            const sofascoreUrl = f.sofascore_id
+                ? `https://www.sofascore.com/match/${f.sofascore_id}`
+                : null;
+            resultsList.innerHTML += `
+                <div class="card row-flex" style="margin-bottom:8px; ${sofascoreUrl ? 'cursor:pointer;' : ''}"
+                     ${sofascoreUrl ? `onclick="window.open('${sofascoreUrl}','_blank')"` : ''}>
+                    <div>
+                        <div style="font-size:11px; color:var(--text-muted); font-weight:700; margin-bottom:4px;">${f.match_date} · ${f.competition || 'Premier League'}</div>
+                        <div style="font-weight:800; font-size:14px;">${f.home_team} ${f.home_score} – ${f.away_score} ${f.away_team}</div>
+                    </div>
+                    ${sofascoreUrl ? '<div style="color:var(--red); font-weight:800;">›</div>' : ''}
+                </div>`;
+        });
+    } else {
+        resultsList.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">No results found.</div>';
+    }
+
+    switchScreen('screen-history');
+}
+
+// ── ADMIN: Archive current season ────────────────────────────────────────────
+async function adminArchiveSeason() {
+    const label = document.getElementById('admin-season-label').value.trim();
+    if (!label) { showToast('Please enter a season label.'); return; }
+
+    if (!confirm(`Archive the current season as "${label}"? This cannot be undone.`)) return;
+
+    showToast('Archiving...');
+
+    // Calculate final standings from predictions
+    const { data: preds } = await supabaseClient
+        .from('predictions')
+        .select('user_name, points_won');
+
+    const totals = {};
+    if (preds) {
+        preds.forEach(p => {
+            if (!totals[p.user_name]) totals[p.user_name] = 0;
+            totals[p.user_name] += (parseInt(p.points_won) || 0);
+        });
+    }
+    const standings = Object.entries(totals)
+        .map(([name, pts]) => ({ name, pts }))
+        .sort((a, b) => b.pts - a.pts);
+    const winner = standings[0]?.name || '—';
+    const winnerPts = standings[0]?.pts || 0;
+
+    // Tag all fixtures with season label
+    const { error: fixturesErr } = await supabaseClient
+        .from('fixtures')
+        .update({ season: label })
+        .is('season', null);
+
+    // Tag all predictions with season label
+    const { error: predsErr } = await supabaseClient
+        .from('predictions')
+        .update({ season: label })
+        .is('season', null);
+
+    if (fixturesErr || predsErr) {
+        showToast('Error archiving. Check console.');
+        console.error(fixturesErr, predsErr);
+        return;
+    }
+
+    // Save season record
+    const { error: seasonErr } = await supabaseClient
+        .from('seasons')
+        .insert({
+            season_label: label,
+            winner,
+            winner_points: winnerPts
+        });
+
+    if (seasonErr) {
+        showToast('Error saving season record.');
+        console.error(seasonErr);
+        return;
+    }
+
+    showToast(`Season ${label} archived!`);
+    document.getElementById('admin-season-label').value = '';
+    loadHistorySeasons();
 }
 
 // Run the initialization as soon as the page finishes loading
