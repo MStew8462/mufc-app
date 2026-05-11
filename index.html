@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MUFC App</title>
+    <title>MUFC Predictor</title>
+    <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/en/thumb/7/7a/Manchester_United_FC_crest.svg/180px-Manchester_United_FC_crest.svg.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MUFC">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
     <style>
@@ -256,6 +260,21 @@
         .admin-panel input[type="number"],
         .admin-panel input[type="text"],
         .admin-panel input[type="date"] { margin-bottom: 10px; }
+
+        /* ── COMPETITIONS FAB ───────────────────────────────── */
+        .comp-option {
+            background: white;
+            border-radius: 20px;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-main);
+            cursor: pointer;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+            white-space: nowrap;
+            border: 1px solid #f0f0f0;
+        }
+        .comp-option:active { background: #f5f5f5; }
     </style>
 </head>
 <body>
@@ -325,7 +344,7 @@
         </div>
     </div>
 
-    <div class="card w-50" style="margin: 0; cursor: pointer; background: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 20px 15px; height: 220px; border: 1px solid #e5e5ea;" onclick="switchScreen('screen-table')">
+    <div class="card w-50" style="margin: 0; cursor: pointer; background: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 20px 15px; height: 220px; border: 1px solid #e5e5ea;" onclick="openTable('pl')">
         
         <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center;">
             <img src="https://upload.wikimedia.org/wikipedia/en/f/f2/Premier_League_Logo.svg" style="width: 95px; height: auto;">
@@ -374,16 +393,39 @@
 
 <div id="screen-table" class="screen" style="display:none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #121212; z-index: 99999; overflow-y: auto;">
     <div style="padding: 20px; display: flex; align-items: center; background: #1a1a1a; border-bottom: 2px solid #da291c;">
-        <button onclick="switchScreen('screen-home')" style="background: #da291c; border: none; color: white; padding: 10px 15px; border-radius: 8px; font-weight: bold; cursor: pointer;">BACK</button>
-        <h1 style="color: white; margin: 0; font-size: 20px; margin-left: 20px;">League Table</h1>
+        <button onclick="closeTableScreen()" style="background: #da291c; border: none; color: white; padding: 10px 15px; border-radius: 8px; font-weight: bold; cursor: pointer;">BACK</button>
+        <h1 id="table-screen-title" style="color: white; margin: 0; font-size: 20px; margin-left: 20px;">League Table</h1>
     </div>
     <div style="padding: 10px; height: 1100px;">
-        <iframe 
+        <iframe id="table-iframe"
             src="https://widgets.sofascore.com/embed/tournament/1/season/76986/standings/Premier%20League%2025%2F26?widgetTitle=&showCompetitionLogo=true" 
             style="width: 100% !important; height: 1100px !important; border: none; border-radius: 12px; background: white; display: block;" 
             frameborder="0" 
             scrolling="no">
         </iframe>
+    </div>
+</div>
+
+<!-- COMPETITIONS FLOATING BUTTON -->
+<div id="comp-fab-container" style="position:fixed; bottom:90px; right:16px; z-index:9998; display:flex; flex-direction:column; align-items:flex-end; gap:10px;">
+    <!-- Competition options - hidden by default -->
+    <div id="comp-options" style="display:none; flex-direction:column; align-items:flex-end; gap:8px;">
+        <div class="comp-option" onclick="openTable('pl')">
+            <span>Premier League</span>
+        </div>
+        <div class="comp-option" onclick="openTable('ucl')">
+            <span>Champions League</span>
+        </div>
+        <div class="comp-option" onclick="openTable('facup')">
+            <span>FA Cup</span>
+        </div>
+        <div class="comp-option" onclick="openTable('efl')">
+            <span>EFL Cup</span>
+        </div>
+    </div>
+    <!-- Main FAB button -->
+    <div id="comp-fab-btn" onclick="toggleCompFab()" style="width:52px; height:52px; border-radius:50%; background:var(--red); display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 16px rgba(218,41,28,0.4);">
+        <img src="https://upload.wikimedia.org/wikipedia/en/thumb/7/7a/Manchester_United_FC_crest.svg/120px-Manchester_United_FC_crest.svg.png" style="width:32px; height:32px; object-fit:contain;">
     </div>
 </div>
     <div id="screen-fixtures" class="screen">
@@ -419,16 +461,16 @@
     </div>
 
     <div class="mini-tabs">
-        <div class="m-tab active" onclick="switchMatchTab('lineups', this)">Starting Lineups</div>
-        <div class="m-tab" onclick="switchMatchTab('stats', this)">Stats</div>
+        <div class="m-tab" onclick="switchMatchTab('lineups', this)">Starting Lineups</div>
+        <div class="m-tab active" onclick="switchMatchTab('stats', this)">Stats</div>
         <div class="m-tab" onclick="switchMatchTab('highlights', this)">Highlights</div>
     </div>
 
-    <div id="tab-lineups" class="m-content active">
+    <div id="tab-lineups" class="m-content">
         <iframe id="iframe-lineups" src="" style="width:100%; height:600px; border:none; background:white; border-radius:12px;" frameborder="0" scrolling="no"></iframe>
     </div>
 
-    <div id="tab-stats" class="m-content">
+    <div id="tab-stats" class="m-content active">
         <div id="stats-container" style="padding: 0 4px;">
             <div style="text-align:center; padding: 40px; color: var(--text-muted); font-size: 14px;">Select a finished match to view stats</div>
         </div>
@@ -765,8 +807,9 @@ async function openMatchCentre(matchCustomId, sofaId, statsUrl, videoUrl) {
     document.getElementById('match-predictions-row').innerHTML = '<div style="font-size:12px; color:#888; padding-left:16px;">Loading predictions...</div>';
     document.querySelectorAll('.m-content').forEach(c => c.classList.remove('active'));
     document.querySelectorAll('.m-tab').forEach(t => t.classList.remove('active'));
-    document.querySelector('.m-tab').classList.add('active');
-    document.getElementById('tab-lineups').classList.add('active');
+    // Default to stats tab
+    document.querySelectorAll('.m-tab').forEach((t,i) => { if(i===1) t.classList.add('active'); });
+    document.getElementById('tab-stats').classList.add('active');
 
     // 2. Set Content (lineups iframe - only if element exists)
     const iframeLineups = document.getElementById('iframe-lineups');
@@ -1452,7 +1495,22 @@ function adminLoadFixture(customId) {
     const f = (window._adminFixtures || []).find(x => x.custom_id === customId);
     if (!f) return;
 
-    // ... existing code for scores and scorers ...
+    document.getElementById('admin-fixture-label').textContent =
+        `${f.home_team} vs ${f.away_team} — ${f.match_date}`;
+    document.getElementById('admin-home-score').value = f.home_score !== null ? f.home_score : '';
+    document.getElementById('admin-away-score').value = f.away_score !== null ? f.away_score : '';
+    document.getElementById('admin-status-select').value = f.status || 'upcoming';
+
+    // Populate scorer dropdown from squad
+    const scorerSel = document.getElementById('admin-scorer-select');
+    scorerSel.innerHTML = '<option value="None">None</option>';
+    (window._squadPlayers || []).forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.name;
+        opt.textContent = p.name;
+        if (f.actual_scorer && p.name === f.actual_scorer) opt.selected = true;
+        scorerSel.appendChild(opt);
+    });
 
     form.style.display = 'block';
 
@@ -1460,21 +1518,7 @@ function adminLoadFixture(customId) {
     const statsCard = document.getElementById('admin-stats-card');
     if (statsCard) statsCard.style.display = 'block';
 
-    // ─── ADD THESE LINES BELOW ───
-    const scoreImgCard = document.getElementById('admin-score-image-card');
-    if (scoreImgCard) scoreImgCard.style.display = 'block';
-    
-    // Show existing score image if already uploaded
-    if (f.score_image) {
-        document.getElementById('admin-score-img').src = f.score_image;
-        document.getElementById('admin-score-image-preview').style.display = 'block';
-    } else {
-        document.getElementById('admin-score-img').src = '';
-        document.getElementById('admin-score-image-preview').style.display = 'none';
-    }
-    // ──────────────────────────────
-
-    // Existing logic for stats image preview...
+    // Show existing stats image if already uploaded
     if (f.stats_image) {
         document.getElementById('admin-stats-img').src = f.stats_image;
         document.getElementById('admin-stats-preview').style.display = 'block';
@@ -1735,6 +1779,67 @@ async function adminSaveScoreImage() {
         showToast('Score image saved! ✓');
     }
 }
+
+
+// ── COMPETITIONS FAB ─────────────────────────────────────────────────────────
+const compWidgets = {
+    pl: {
+        title: 'Premier League',
+        url: 'https://widgets.sofascore.com/embed/tournament/1/season/76986/standings/Premier%20League%2025%2F26?widgetTitle=&showCompetitionLogo=true'
+    },
+    ucl: {
+        title: 'Champions League',
+        url: 'https://widgets.sofascore.com/embed/tournament/7/season/61644/standings/Champions%20League%2025%2F26?widgetTitle=&showCompetitionLogo=true'
+    },
+    facup: {
+        title: 'FA Cup',
+        url: 'https://widgets.sofascore.com/embed/tournament/4/season/61643/standings/FA%20Cup%2025%2F26?widgetTitle=&showCompetitionLogo=true'
+    },
+    efl: {
+        title: 'EFL Cup',
+        url: 'https://widgets.sofascore.com/embed/tournament/21/season/61645/standings/EFL%20Cup%2025%2F26?widgetTitle=&showCompetitionLogo=true'
+    }
+};
+
+function toggleCompFab() {
+    const options = document.getElementById('comp-options');
+    const isVisible = options.style.display === 'flex';
+    options.style.display = isVisible ? 'none' : 'flex';
+}
+
+function openTable(comp) {
+    // Hide FAB options
+    document.getElementById('comp-options').style.display = 'none';
+
+    const widget = compWidgets[comp];
+    if (!widget) return;
+
+    document.getElementById('table-screen-title').textContent = widget.title;
+    document.getElementById('table-iframe').src = widget.url;
+
+    // Store previous screen to return to
+    window._prevScreen = document.querySelector('.screen[style*="block"]')?.id || 'screen-home';
+    
+    document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+    document.getElementById('screen-table').style.display = 'block';
+    window.scrollTo(0, 0);
+}
+
+function closeTableScreen() {
+    document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+    const prev = document.getElementById(window._prevScreen || 'screen-home');
+    if (prev) prev.style.display = 'block';
+    window.scrollTo(0, 0);
+}
+
+// Close FAB when tapping elsewhere
+document.addEventListener('click', function(e) {
+    const fab = document.getElementById('comp-fab-container');
+    if (fab && !fab.contains(e.target)) {
+        const options = document.getElementById('comp-options');
+        if (options) options.style.display = 'none';
+    }
+});
 
 // ── HISTORY: Load season cards on home screen ────────────────────────────────
 async function loadHistorySeasons() {
