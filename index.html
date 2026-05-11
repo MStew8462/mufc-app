@@ -413,6 +413,11 @@
     <div id="match-predictions-row" style="display: flex; gap: 8px; padding: 0 16px 20px 16px;">
         </div>
 
+    <!-- Score image -->
+    <div id="match-score-image-container" style="margin: 0 16px 16px 16px; display:none;">
+        <img id="match-score-image" src="" style="width:100%; border-radius:14px; display:block;" />
+    </div>
+
     <div class="mini-tabs">
         <div class="m-tab active" onclick="switchMatchTab('lineups', this)">Starting Lineups</div>
         <div class="m-tab" onclick="switchMatchTab('stats', this)">Stats</div>
@@ -650,6 +655,22 @@
         </div>
     </div>
 
+    <div class="admin-section" id="admin-score-image-card" style="display:none;">
+        <div class="admin-section-header" onclick="adminToggle('panel-score-image')">
+            Upload Score Image
+            <span class="admin-chevron" id="panel-score-image-chevron">›</span>
+        </div>
+        <div class="admin-panel" id="panel-score-image">
+            <div id="admin-score-image-preview" style="display:none; margin-bottom:10px;">
+                <img id="admin-score-img" src="" style="width:100%; border-radius:12px;" />
+            </div>
+            <div style="background:#f5f5f7; border:2px dashed #e5e5ea; border-radius:10px; padding:14px; text-align:center; margin-bottom:10px;">
+                <input type="file" id="admin-score-upload" accept="image/*" onchange="adminPreviewScoreImage(this)">
+            </div>
+            <button class="btn-primary btn-full" style="background:#34c759;" onclick="adminSaveScoreImage()">Upload Score Image</button>
+        </div>
+    </div>
+
     <div class="admin-section">
         <div class="admin-section-header" onclick="adminToggle('panel-archive')">
             Archive Season
@@ -767,7 +788,7 @@ async function openMatchCentre(matchCustomId, sofaId, statsUrl, videoUrl) {
 
     // 4. Fetch Actual Result and Predictions
     const [fixtureRes, predsRes] = await Promise.all([
-        supabaseClient.from('fixtures').select('home_score, away_score, actual_scorer, home_team, away_team, match_date, status, stats_image').eq('custom_id', searchId).maybeSingle(),
+        supabaseClient.from('fixtures').select('home_score, away_score, actual_scorer, home_team, away_team, match_date, status, stats_image, score_image').eq('custom_id', searchId).maybeSingle(),
         supabaseClient.from('predictions').select('*').eq('match_id', searchId)
     ]);
 
@@ -863,8 +884,19 @@ async function openMatchCentre(matchCustomId, sofaId, statsUrl, videoUrl) {
     } else {
         row.innerHTML = '<div style="font-size:12px; color:#888; padding-left:16px;">No predictions found.</div>';
     }
-    // Load match stats via API
+    // Load match stats image
     loadMatchStats(fixtureRes.data);
+
+    // Load score image
+    const scoreImgContainer = document.getElementById('match-score-image-container');
+    const scoreImg = document.getElementById('match-score-image');
+    if (fixtureRes.data?.score_image) {
+        scoreImg.src = fixtureRes.data.score_image;
+        scoreImgContainer.style.display = 'block';
+    } else {
+        scoreImg.src = '';
+        scoreImgContainer.style.display = 'none';
+    }
 
     switchScreen('screen-match');
 }
@@ -1392,7 +1424,7 @@ function enableAdmin() {
 async function adminLoadFixtures() {
     const { data, error } = await supabaseClient
         .from('fixtures')
-        .select('id, custom_id, home_team, away_team, match_date, home_score, away_score, actual_scorer, status, stats_image')
+        .select('id, custom_id, home_team, away_team, match_date, home_score, away_score, actual_scorer, status, stats_image, score_image')
         .order('id', { ascending: true });
     if (error || !data) return;
 
@@ -1420,22 +1452,7 @@ function adminLoadFixture(customId) {
     const f = (window._adminFixtures || []).find(x => x.custom_id === customId);
     if (!f) return;
 
-    document.getElementById('admin-fixture-label').textContent =
-        `${f.home_team} vs ${f.away_team} — ${f.match_date}`;
-    document.getElementById('admin-home-score').value = f.home_score !== null ? f.home_score : '';
-    document.getElementById('admin-away-score').value = f.away_score !== null ? f.away_score : '';
-    document.getElementById('admin-status-select').value = f.status || 'upcoming';
-
-    // Populate scorer dropdown from squad
-    const scorerSel = document.getElementById('admin-scorer-select');
-    scorerSel.innerHTML = '<option value="None">None</option>';
-    (window._squadPlayers || []).forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p.name;
-        opt.textContent = p.name;
-        if (f.actual_scorer && p.name === f.actual_scorer) opt.selected = true;
-        scorerSel.appendChild(opt);
-    });
+    // ... existing code for scores and scorers ...
 
     form.style.display = 'block';
 
@@ -1443,7 +1460,21 @@ function adminLoadFixture(customId) {
     const statsCard = document.getElementById('admin-stats-card');
     if (statsCard) statsCard.style.display = 'block';
 
-    // Show existing stats image if already uploaded
+    // ─── ADD THESE LINES BELOW ───
+    const scoreImgCard = document.getElementById('admin-score-image-card');
+    if (scoreImgCard) scoreImgCard.style.display = 'block';
+    
+    // Show existing score image if already uploaded
+    if (f.score_image) {
+        document.getElementById('admin-score-img').src = f.score_image;
+        document.getElementById('admin-score-image-preview').style.display = 'block';
+    } else {
+        document.getElementById('admin-score-img').src = '';
+        document.getElementById('admin-score-image-preview').style.display = 'none';
+    }
+    // ──────────────────────────────
+
+    // Existing logic for stats image preview...
     if (f.stats_image) {
         document.getElementById('admin-stats-img').src = f.stats_image;
         document.getElementById('admin-stats-preview').style.display = 'block';
@@ -1648,6 +1679,62 @@ async function adminDeletePlayer() {
     }
 }
 
+
+
+// ── ADMIN: Score image preview ───────────────────────────────────────────────
+function adminPreviewScoreImage(input) {
+    if (!input.files || !input.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        document.getElementById('admin-score-img').src = e.target.result;
+        document.getElementById('admin-score-image-preview').style.display = 'block';
+    };
+    reader.readAsDataURL(input.files[0]);
+}
+
+// ── ADMIN: Upload score image to Supabase Storage ────────────────────────────
+async function adminSaveScoreImage() {
+    const customId = document.getElementById('admin-fixture-select').value;
+    if (!customId) { showToast('Please select a fixture first.'); return; }
+
+    const fileInput = document.getElementById('admin-score-upload');
+    if (!fileInput.files || !fileInput.files[0]) {
+        showToast('Please choose an image first.');
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const ext = file.name.split('.').pop();
+    const filePath = `scores/${customId}_score.${ext}`;
+
+    showToast('Uploading...');
+
+    const { error: uploadError } = await supabaseClient.storage
+        .from('videos')
+        .upload(filePath, file, { upsert: true, contentType: file.type });
+
+    if (uploadError) {
+        showToast('Upload failed. Check console.');
+        console.error(uploadError);
+        return;
+    }
+
+    const { data: urlData } = supabaseClient.storage
+        .from('videos')
+        .getPublicUrl(filePath);
+
+    const { error: dbError } = await supabaseClient
+        .from('fixtures')
+        .update({ score_image: urlData.publicUrl })
+        .eq('custom_id', customId);
+
+    if (dbError) {
+        showToast('Image uploaded but failed to save URL.');
+        console.error(dbError);
+    } else {
+        showToast('Score image saved! ✓');
+    }
+}
 
 // ── HISTORY: Load season cards on home screen ────────────────────────────────
 async function loadHistorySeasons() {
