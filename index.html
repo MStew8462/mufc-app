@@ -220,6 +220,20 @@
         }
         .media-float-pill.dark { background: #1c1c1e; }
         .media-float-pill.green { background: #1DB954; }
+        .media-float-btn.sofascore {
+            background: linear-gradient(135deg, #175CD3 0%, #0d4bab 100%);
+            border-color: rgba(255, 255, 255, 0.22);
+            box-shadow: 0 4px 16px rgba(23, 92, 211, 0.35);
+        }
+        .media-float-btn.sofascore:active {
+            box-shadow: 0 2px 8px rgba(23, 92, 211, 0.28);
+        }
+        .media-float-btn.sofascore .media-float-label { color: #ffffff; }
+        .media-float-btn.sofascore .media-float-sub { color: rgba(255, 255, 255, 0.82); }
+        .media-float-btn.sofascore .media-float-pill {
+            background: #ffffff;
+            color: #175CD3;
+        }
         .media-social-grid {
             display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
             gap: 10px; margin: 0 16px 8px 16px;
@@ -478,7 +492,7 @@
 
     <!-- LATEST SCORES -->
     <div class="media-section-title">Latest Scores</div>
-    <div class="media-float-btn" onclick="window.open('https://www.sofascore.com/team/football/manchester-united/35', '_blank')">
+    <div class="media-float-btn sofascore" onclick="window.open('https://www.sofascore.com/', '_blank')">
         <div>
             <div class="media-float-label">Sofascore</div>
             <div class="media-float-sub">Live scores, stats and lineups</div>
@@ -1133,7 +1147,8 @@ async function fetchSquad() {
     if (!players) return;
     window._squadPlayers = players.filter(p => p.position !== 'GK'); // store for admin scorer dropdown
     const dropdown = document.getElementById('input-scorer');
-    dropdown.innerHTML = '<option value="None">None</option>';
+    // Prediction form: placeholder + outfield players only (no "None"; admin keeps None for real 0-0 etc.)
+    dropdown.innerHTML = '<option value="" disabled selected>Choose scorer</option>';
     players.filter(p => p.position !== 'GK').forEach(p => {
         const opt = document.createElement('option');
         opt.value = p.name; opt.innerText = `${p.number || '0'}. ${p.name}`;
@@ -1223,16 +1238,28 @@ function openPredictionModal() {
             if (homeInput) homeInput.value = currentPrediction.pred_home ?? '';
             if (awayInput) awayInput.value = currentPrediction.pred_away ?? '';
             const scorerDropdown = document.getElementById('input-scorer');
-            if (scorerDropdown && currentPrediction.pred_scorer) {
+            if (scorerDropdown && scorerDropdown.options.length) {
+                const raw = currentPrediction.pred_scorer;
+                const invalid = !raw || String(raw).toLowerCase() === 'none';
+                let matched = false;
                 Array.from(scorerDropdown.options).forEach(opt => {
-                    opt.selected = opt.value === currentPrediction.pred_scorer;
+                    const sel = !invalid && opt.value === raw;
+                    opt.selected = sel;
+                    if (sel) matched = true;
                 });
+                if (!matched) {
+                    const ph = scorerDropdown.querySelector('option[value=""]');
+                    if (ph) ph.selected = true;
+                }
             }
         } else {
             if (homeInput) homeInput.value = '';
             if (awayInput) awayInput.value = '';
             const scorerDropdown = document.getElementById('input-scorer');
-            if (scorerDropdown) scorerDropdown.selectedIndex = 0;
+            if (scorerDropdown) {
+                const ph = scorerDropdown.querySelector('option[value=""]');
+                if (ph) ph.selected = true;
+            }
         }
 
         if (modal) {
