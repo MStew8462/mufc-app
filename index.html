@@ -220,6 +220,18 @@
         }
         .media-float-pill.dark { background: #1c1c1e; }
         .media-float-pill.green { background: #1DB954; }
+        /* Media links as <a>: avoid extra tap layer / iOS quirks vs window.open */
+        a.media-float-btn {
+            text-decoration: none;
+            color: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        a.media-social-btn {
+            text-decoration: none;
+            color: inherit;
+            -webkit-tap-highlight-color: transparent;
+            display: block;
+        }
         .media-float-btn.sofascore {
             background: linear-gradient(135deg, #175CD3 0%, #0d4bab 100%);
             border-color: rgba(255, 255, 255, 0.22);
@@ -492,82 +504,82 @@
 
     <!-- LATEST SCORES -->
     <div class="media-section-title">Latest Scores</div>
-    <div class="media-float-btn sofascore" onclick="window.open('https://www.sofascore.com/', '_blank')">
+    <a class="media-float-btn sofascore" href="https://www.sofascore.com/" target="_blank" rel="noopener noreferrer">
         <div>
             <div class="media-float-label">Sofascore</div>
             <div class="media-float-sub">Live scores, stats and lineups</div>
         </div>
         <span class="media-float-pill">Open</span>
-    </div>
+    </a>
 
     <!-- UNITED SOCIALS -->
     <div class="media-section-title">United Socials</div>
     <div class="media-social-grid">
-        <div class="media-social-btn" onclick="window.open('https://twitter.com/ManUtd', '_blank')">
+        <a class="media-social-btn" href="https://twitter.com/ManUtd" target="_blank" rel="noopener noreferrer">
             <img src="https://cdn-icons-png.flaticon.com/512/3256/3256013.png" alt="X">
             <span>X</span>
-        </div>
-        <div class="media-social-btn" onclick="window.open('https://www.instagram.com/manchesterunited', '_blank')">
+        </a>
+        <a class="media-social-btn" href="https://www.instagram.com/manchesterunited" target="_blank" rel="noopener noreferrer">
             <img src="https://cdn-icons-png.flaticon.com/512/174/174855.png" alt="Insta">
             <span>Insta</span>
-        </div>
-        <div class="media-social-btn" onclick="window.open('https://www.youtube.com/@manutd', '_blank')">
+        </a>
+        <a class="media-social-btn" href="https://www.youtube.com/@manutd" target="_blank" rel="noopener noreferrer">
             <img src="https://cdn-icons-png.flaticon.com/512/1384/1384060.png" alt="YouTube">
             <span>YouTube</span>
-        </div>
-        <div class="media-social-btn" onclick="window.open('https://www.tiktok.com/@manutd', '_blank')">
+        </a>
+        <a class="media-social-btn" href="https://www.tiktok.com/@manutd" target="_blank" rel="noopener noreferrer">
             <img src="https://cdn-icons-png.flaticon.com/512/3046/3046121.png" alt="TikTok">
             <span>TikTok</span>
-        </div>
+        </a>
     </div>
 
     <!-- PODCASTS -->
     <div class="media-section-title">Podcasts</div>
-    <div class="media-float-btn" onclick="window.open('https://podcasts.apple.com/gb/podcast/talk-of-the-devils-the-athletic-fcs-manchester-united-show/id1495072403', '_blank')">
+    <a class="media-float-btn" href="https://podcasts.apple.com/gb/podcast/talk-of-the-devils-the-athletic-fcs-manchester-united-show/id1495072403" target="_blank" rel="noopener noreferrer">
         <div>
             <div class="media-float-label">Talk of the Devils</div>
             <div class="media-float-sub">The Athletic</div>
         </div>
         <span class="media-float-pill dark">Listen</span>
-    </div>
-    <div class="media-float-btn" onclick="window.open('https://podcasts.apple.com/mm/podcast/manchester-united-podcast-by-stretford-paddock/id1456182249', '_blank')">
+    </a>
+    <a class="media-float-btn" href="https://podcasts.apple.com/mm/podcast/manchester-united-podcast-by-stretford-paddock/id1456182249" target="_blank" rel="noopener noreferrer">
         <div>
             <div class="media-float-label">Stretford Paddock</div>
             <div class="media-float-sub">Daily United content</div>
         </div>
         <span class="media-float-pill dark">Listen</span>
-    </div>
-    <div class="media-float-btn" onclick="window.open('https://podcasts.apple.com/gb/podcast/the-good-days-are-coming-a-manchester-united-podcast/id1833675045', '_blank')">
+    </a>
+    <a class="media-float-btn" href="https://podcasts.apple.com/gb/podcast/the-good-days-are-coming-a-manchester-united-podcast/id1833675045" target="_blank" rel="noopener noreferrer">
         <div>
             <div class="media-float-label">Good Days Are Coming</div>
             <div class="media-float-sub">Moorhouse, Noz and Jim White</div>
         </div>
         <span class="media-float-pill dark">Listen</span>
-    </div>
+    </a>
 
     <!-- LATEST NEWS -->
     <div class="media-section-title">Latest News</div>
-    <div class="media-float-btn" onclick="window.open('https://www.bbc.co.uk/sport/football/teams/manchester-united', '_blank')">
+    <a class="media-float-btn" href="https://www.bbc.co.uk/sport/football/teams/manchester-united" target="_blank" rel="noopener noreferrer">
         <div>
             <div class="media-float-label">BBC Sport</div>
             <div class="media-float-sub">News, results and fixtures</div>
         </div>
         <span class="media-float-pill">Link</span>
-    </div>
-    <div class="media-float-btn" onclick="window.open('https://www.skysports.com/manchester-united', '_blank')">
+    </a>
+    <a class="media-float-btn" href="https://www.skysports.com/manchester-united" target="_blank" rel="noopener noreferrer">
         <div>
             <div class="media-float-label">Sky Sports</div>
             <div class="media-float-sub">Transfer news and match coverage</div>
         </div>
         <span class="media-float-pill">Link</span>
-    </div>
-    <div class="media-float-btn" style="margin-bottom:24px;" onclick="window.open('https://www.manutd.com/en/news', '_blank')">
+    </a>
+    <a class="media-float-btn" style="margin-bottom:24px;" href="https://www.manutd.com/en/news" target="_blank" rel="noopener noreferrer">
         <div>
             <div class="media-float-label">Official Site</div>
             <div class="media-float-sub">ManUtd.com — club news</div>
         </div>
         <span class="media-float-pill">Link</span>
-    </div>
+    </a>
 
 </div>
 
@@ -741,11 +753,40 @@ let currentUser = null; try { currentUser = localStorage.getItem('mufc_user') ||
 let currentMatchId = null;
 let currentMatchLabel = null; // stores "Home vs Away" for modal title
 let currentPrediction = null; // stores existing prediction for edit pre-fill 
+/** Last main tab shown; used to repaint after returning from an external app/browser. */
+let lastActiveScreenId = 'screen-home';
+
+/**
+ * iOS / PWA: returning from an external link can leave an invisible full-screen layer
+ * (e.g. prediction modal mid-close with display:flex) or a blank compositor frame.
+ * Clean up and re-apply the current screen without scrolling.
+ */
+function restoreAppSurfaceAfterReturn() {
+    const mod = document.getElementById('predModal');
+    if (mod && !mod.classList.contains('active')) {
+        mod.style.display = 'none';
+    }
+    if (!currentUser) return;
+    const loginScreen = document.getElementById('screen-login');
+    if (loginScreen) {
+        loginScreen.style.display = 'none';
+        loginScreen.classList.remove('active');
+    }
+    switchScreen(lastActiveScreenId, { skipScroll: true });
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') restoreAppSurfaceAfterReturn();
+});
+window.addEventListener('pageshow', (e) => {
+    if (e.persisted) restoreAppSurfaceAfterReturn();
+});
 
 /**
  * Handles navigation between screens with an added security check for the Admin tab.
  */
-function switchScreen(screenId) {
+function switchScreen(screenId, navOrOpts) {
+    const skipScroll = navOrOpts && typeof navOrOpts === 'object' && navOrOpts.skipScroll === true;
     // SECURITY GATE: Check name OR if the secret override is active[cite: 1]
     if (screenId === 'screen-admin') {
         if (currentUser !== 'Matt' && !masterAdminOverride) {
@@ -756,6 +797,8 @@ function switchScreen(screenId) {
         adminLoadSquadForDelete(); // Populate delete player dropdown
     }
 
+    lastActiveScreenId = screenId;
+
     document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
     const target = document.getElementById(screenId);
     if (target) target.style.display = 'block';
@@ -763,7 +806,7 @@ function switchScreen(screenId) {
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
     const activeNav = document.querySelector(`.nav-item[onclick*="${screenId}"]`);
     if (activeNav) activeNav.classList.add('active');
-    window.scrollTo(0, 0);
+    if (!skipScroll) window.scrollTo(0, 0);
 }
 
 function switchMatchTab(tabName, tabElement) {
@@ -1402,6 +1445,7 @@ async function initApp() {
             loginScreen.classList.remove('active');
         }
         if (homeScreen) homeScreen.style.display = 'block';
+        lastActiveScreenId = 'screen-home';
         
         console.log("Logged in as:", currentUser);
 
