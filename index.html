@@ -56,6 +56,10 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     gap: 14px;
     cursor: default;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.squad-card:active {
+    transform: scale(0.987);
 }
 .squad-avatar {
     width: 48px;
@@ -133,11 +137,17 @@
         /* Typography & Cards */
         .page-title { text-align: center; font-weight: 800; font-size: 16px; margin: 20px 0; color: var(--text-main); text-transform: uppercase; letter-spacing: -0.5px;}
         .section-label { font-size: 12px; font-weight: 800; color: var(--red); text-transform: uppercase; letter-spacing: 1px; margin: 24px 0 10px 16px; border-bottom: 2px solid var(--red); display: inline-block; padding-bottom: 4px; }
-        .card { background: var(--card-bg); margin: 0 16px 16px 16px; padding: 20px; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); cursor: pointer;}
+        .card { background: var(--card-bg); margin: 0 16px 16px 16px; padding: 20px; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); cursor: pointer; transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease; }
+        .card:active { transform: scale(0.985); }
         .center-text { text-align: center; }
         
         /* Profile */
-        .profile-card { background: linear-gradient(135deg, #1c1c1e 0%, #000000 100%); margin: 20px 16px; padding: 30px 20px; border-radius: 20px; text-align: center; color: white; box-shadow: 0 10px 20px rgba(0,0,0,0.15); }
+        .profile-card { background: linear-gradient(135deg, #1c1c1e 0%, #000000 100%); margin: 20px 16px; padding: 30px 20px; border-radius: 20px; text-align: center; color: white; box-shadow: 0 10px 20px rgba(0,0,0,0.15); transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease; }
+        .profile-card.profile-reveal { animation: profilePop 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+        @keyframes profilePop {
+            from { opacity: 0; transform: translateY(14px) scale(0.96); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
         .rank-badge { background: var(--red); color: white; font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 12px; display: inline-block; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;}
         
         /* Text Elements */
@@ -156,6 +166,69 @@
         .slick-table .rank { color: var(--text-muted); font-weight: 700; width: 22px; }
         .slick-table .num { text-align: right; font-weight: 800;}
         .highlight-row td { font-weight: 800 !important; color: var(--red) !important; }
+
+        /* ── Polish: skeletons, motion, pull-to-refresh ─────────────────── */
+        @keyframes sk-shimmer {
+            0% { background-position: 100% 0; }
+            100% { background-position: -100% 0; }
+        }
+        .fixture-card-skeleton .fix-date,
+        .fixture-card-skeleton .fix-teams,
+        .fixture-card-skeleton .fix-sub {
+            color: transparent !important;
+            border-radius: 8px;
+            min-height: 13px;
+            background: linear-gradient(110deg, #e8e8ed 0%, #f4f4f7 45%, #e8e8ed 90%);
+            background-size: 200% 100%;
+            animation: sk-shimmer 1.15s ease-in-out infinite;
+        }
+        .fixture-card-skeleton .fix-teams { min-height: 20px; margin-top: 4px; }
+        .fixture-card-skeleton .fix-sub { min-height: 14px; margin-top: 8px; }
+        .fixture-card-skeleton .fixture-card-hint {
+            visibility: hidden;
+            height: 0;
+            margin: 0 !important;
+            overflow: hidden;
+        }
+        .lb-sk-row td { padding: 10px 0 14px; border-bottom: none; }
+        .lb-sk-bar {
+            height: 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            background: linear-gradient(110deg, #e8e8ed 0%, #f4f4f7 45%, #e8e8ed 90%);
+            background-size: 200% 100%;
+            animation: sk-shimmer 1.15s ease-in-out infinite;
+        }
+        .lb-sk-bar.short { width: 72%; }
+        .lb-sk-bar.tiny { width: 42%; margin-bottom: 0; }
+
+        #ptr-indicator {
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%) translateY(-120%);
+            width: 100%;
+            max-width: 430px;
+            text-align: center;
+            padding: 12px 16px 8px;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--red);
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            z-index: 8500;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+            background: linear-gradient(180deg, rgba(242, 242, 247, 0.97) 40%, rgba(242, 242, 247, 0));
+        }
+        #ptr-indicator.ptr-visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        #ptr-indicator.ptr-ready {
+            color: #1c1c1e;
+        }
 
         /* Squad */
         .squad-pic { width: 44px; height: 44px; border-radius: 50%; background: #e5e5ea; margin-right: 15px; }
@@ -180,7 +253,8 @@
         .modal-overlay.active .modal-content { transform: translateY(0); }
         
         /* Buttons & Inputs */
-        .btn-primary { background: var(--red); color: white; border: none; padding: 16px; border-radius: 14px; font-size: 14px; font-weight: 800; width: calc(100% - 32px); margin: 0 16px 16px 16px; cursor: pointer; text-transform: uppercase; transition: background 0.2s;}
+        .btn-primary { background: var(--red); color: white; border: none; padding: 16px; border-radius: 14px; font-size: 14px; font-weight: 800; width: calc(100% - 32px); margin: 0 16px 16px 16px; cursor: pointer; text-transform: uppercase; transition: transform 0.15s ease, background 0.2s ease, filter 0.15s ease; }
+        .btn-primary:active { transform: scale(0.98); }
         .btn-full { width: 100%; margin: 0 0 10px 0; }
         .btn-close { background: #e5e5ea; color: var(--text-main); }
         .input-group { display: flex; gap: 10px; margin-bottom: 20px; width: 100%;}
@@ -303,6 +377,7 @@
 </div>
 
     <div id="toast">Prediction Saved!</div>
+    <div id="ptr-indicator" role="status" aria-live="polite"></div>
 
     <div id="screen-home" class="screen active">
         <div class="profile-card">
@@ -316,12 +391,12 @@
         
         <div class="card center-text" 
      id="next-match-card" 
-     onclick="openMatchCenter(currentMatchId)" 
+     onclick="openMatchCentre(currentMatchId, '', '', '')" 
      style="border-left: 6px solid var(--red); border-right: 6px solid var(--red); cursor: pointer;">
     <div class="fix-date" id="home-fix-date">Next Fixture • Loading...</div>
     <div class="fix-teams" id="home-fix-teams">-- vs --</div>
     <div class="fix-sub" id="home-fix-sub">-- • --</div>
-    <div style="font-size: 10px; color: var(--red); font-weight: 800; margin-top: 10px; text-transform: uppercase;">
+    <div class="fixture-card-hint" style="font-size: 10px; color: var(--red); font-weight: 800; margin-top: 10px; text-transform: uppercase;">
         Tap for Match Centre ➔
     </div>
 </div>
@@ -337,10 +412,10 @@
         <div id="prediction-locked-msg" style="display:none; text-align:center; font-size:12px; font-weight:700; color:#8e8e93; margin: 0 16px 12px 16px; padding: 10px; background:#f5f5f7; border-radius:10px;">🔒 Prediction deadline has passed</div>
 
         <div class="section-label">Last Match</div>
-<div class="card center-text" onclick="switchScreen('screen-match')" style="border-left: 6px solid var(--text-main); border-right: 6px solid var(--text-main);">
+<div class="card center-text" id="last-match-card" onclick="switchScreen('screen-match')" style="border-left: 6px solid var(--text-main); border-right: 6px solid var(--text-main);">
     <div class="fix-date" id="last-fix-date">Loading...</div>
     <div class="fix-teams" id="last-fix-teams">-- vs --</div>
-    <div class="fix-sub" id="last-fix-sub" style="color: var(--red); font-weight: 700;">Tap to view stats & predictions ➔</div>
+    <div class="fix-sub fixture-card-hint" id="last-fix-sub" style="color: var(--red); font-weight: 700;">Tap to view stats & predictions ➔</div>
 </div>
 
         <div class="gap-flex" style="margin-top: 16px;">
@@ -1010,6 +1085,7 @@ function updatePredictionLockState(kickoffDate) {
 }
 
 async function fetchNextFixture() {
+    setHomeFixtureSkeletons(true);
     try {
         const now = new Date();
         const threeHoursMs = 3 * 60 * 60 * 1000;
@@ -1087,7 +1163,7 @@ async function fetchNextFixture() {
 
         if (lastFixture) {
             const l = lastFixture;
-            const lastCard = document.querySelector('#screen-home .card[onclick*="screen-match"]');
+            const lastCard = document.getElementById('last-match-card');
             if (lastCard) {
                 lastCard.setAttribute('onclick', `openMatchCentre('${l.custom_id}', '${l.sofascore_id}', '${l.stats_url || ''}', '${l.highlights_url || ''}')`);
             }
@@ -1098,9 +1174,13 @@ async function fetchNextFixture() {
             } else {
                 document.getElementById('last-fix-date').innerText = `${l.match_date} • Full Time`;
                 document.getElementById('last-fix-teams').innerText = `${l.home_team} ${l.home_score} - ${l.away_score} ${l.away_team}`;
+                document.getElementById('last-fix-sub').innerText = 'Tap to view stats & predictions ➔';
             }
         }
     } catch (err) { console.error("Fixture Error:", err); }
+    finally {
+        setHomeFixtureSkeletons(false);
+    }
 }
 
 async function fetchAllFixtures() {
@@ -1140,12 +1220,20 @@ async function refreshUsers() {
     const nameDisplay = document.getElementById('prof-name');
     if (nameDisplay) nameDisplay.innerText = currentUser;
 
+    setLeaderboardSkeleton(true);
     // Calculate totals directly from predictions table
     const { data: preds } = await supabaseClient
         .from('predictions')
         .select('user_name, points_won');
 
-    if (!preds) return;
+    const table = document.getElementById('leaderboard-table');
+    if (!preds) {
+        if (table) {
+            table.innerHTML = '<tr><th>Pos</th><th>User</th><th class="num">Pts</th></tr>' +
+                '<tr><td colspan="3" style="text-align:center;padding:16px;color:#888;">No data</td></tr>';
+        }
+        return;
+    }
 
     // Sum points per user
     const totals = {};
@@ -1167,7 +1255,6 @@ async function refreshUsers() {
         .map(([user_name, total_points]) => ({ user_name, total_points }))
         .sort((a, b) => b.total_points - a.total_points);
 
-    const table = document.getElementById('leaderboard-table');
     if (table) {
         table.innerHTML = '<tr><th>Pos</th><th>User</th><th class="num">Pts</th></tr>';
         sorted.forEach((user, index) => {
@@ -1353,6 +1440,7 @@ async function closePredictionModal(saved) {
             if (error) throw error;
             
             showToast("Prediction Saved! ✓");
+            hapticSuccess();
             checkExistingPrediction(); // Refresh the preview on the home screen
 
         } catch (err) {
@@ -1413,6 +1501,128 @@ function showToast(msg) {
     setTimeout(() => { toast.className = ""; }, 2000);
 }
 
+function hapticSuccess() {
+    try {
+        if (navigator.vibrate) navigator.vibrate([10, 35, 14]);
+    } catch (e) {}
+}
+
+function setHomeFixtureSkeletons(on) {
+    document.getElementById('next-match-card')?.classList.toggle('fixture-card-skeleton', !!on);
+    document.getElementById('last-match-card')?.classList.toggle('fixture-card-skeleton', !!on);
+}
+
+function setLeaderboardSkeleton(on) {
+    const table = document.getElementById('leaderboard-table');
+    if (!table || !on) return;
+    const rowSk = '<tr class="lb-sk-row"><td colspan="3"><div class="lb-sk-bar"></div><div class="lb-sk-bar short"></div><div class="lb-sk-bar tiny"></div></td></tr>';
+    table.innerHTML = '<tr><th>Pos</th><th>User</th><th class="num">Pts</th></tr>' + rowSk + rowSk + rowSk;
+}
+
+let _ptrRefreshBusy = false;
+let _ptrStartY = 0;
+let _ptrPull = 0;
+let _ptrTracking = false;
+
+function setPtrVisual(mode, pullPx) {
+    const el = document.getElementById('ptr-indicator');
+    if (!el) return;
+    const threshold = 72;
+    if (mode === 'hide') {
+        el.classList.remove('ptr-visible', 'ptr-ready');
+        el.textContent = '';
+        return;
+    }
+    if (mode === 'pull') {
+        const p = pullPx || 0;
+        if (p < 12) {
+            el.classList.remove('ptr-visible', 'ptr-ready');
+            el.textContent = '';
+            return;
+        }
+        el.textContent = p >= threshold ? 'Release to refresh' : 'Pull to refresh';
+        el.classList.add('ptr-visible');
+        el.classList.toggle('ptr-ready', p >= threshold);
+        return;
+    }
+    if (mode === 'loading') {
+        el.textContent = 'Refreshing…';
+        el.classList.add('ptr-visible', 'ptr-ready');
+    }
+}
+
+function ptrModalBlocking() {
+    const m = document.getElementById('predModal');
+    return m && m.classList.contains('active');
+}
+
+function isHomeScreenVisible() {
+    const h = document.getElementById('screen-home');
+    if (!h) return false;
+    return window.getComputedStyle(h).display !== 'none';
+}
+
+async function refreshAppData() {
+    if (!currentUser || _ptrRefreshBusy) return;
+    _ptrRefreshBusy = true;
+    try {
+        await fetchNextFixture();
+        await Promise.all([
+            checkExistingPrediction(),
+            refreshUsers(),
+            fetchSquad(),
+            fetchAllFixtures(),
+            loadHistorySeasons()
+        ]);
+    } catch (err) {
+        console.error('Refresh:', err);
+        showToast('Refresh failed');
+    } finally {
+        _ptrRefreshBusy = false;
+    }
+}
+
+(function setupPullToRefresh() {
+    document.addEventListener('touchstart', (e) => {
+        if (!currentUser || ptrModalBlocking()) return;
+        if (!isHomeScreenVisible()) return;
+        if (window.scrollY > 12) return;
+        _ptrTracking = true;
+        _ptrStartY = e.touches[0].clientY;
+        _ptrPull = 0;
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!_ptrTracking || ptrModalBlocking()) return;
+        if (!isHomeScreenVisible()) {
+            _ptrTracking = false;
+            setPtrVisual('hide');
+            return;
+        }
+        if (window.scrollY > 12) {
+            _ptrTracking = false;
+            setPtrVisual('hide');
+            return;
+        }
+        const y = e.touches[0].clientY;
+        _ptrPull = Math.max(0, y - _ptrStartY);
+        if (_ptrPull > 0) setPtrVisual('pull', _ptrPull);
+    }, { passive: true });
+
+    document.addEventListener('touchend', () => {
+        if (!_ptrTracking) return;
+        _ptrTracking = false;
+        const threshold = 72;
+        if (_ptrPull >= threshold && isHomeScreenVisible() && currentUser && !_ptrRefreshBusy) {
+            setPtrVisual('loading');
+            refreshAppData().finally(() => setPtrVisual('hide'));
+        } else {
+            setPtrVisual('hide');
+        }
+        _ptrPull = 0;
+    });
+})();
+
 /**
  * Updates the saved user in the browser and reloads the application[cite: 1].
  */
@@ -1446,6 +1656,8 @@ async function initApp() {
         }
         if (homeScreen) homeScreen.style.display = 'block';
         lastActiveScreenId = 'screen-home';
+        const profileCard = document.querySelector('#screen-home .profile-card');
+        if (profileCard) profileCard.classList.add('profile-reveal');
         
         console.log("Logged in as:", currentUser);
 
@@ -1592,6 +1804,7 @@ async function adminSaveResult() {
         console.error(error);
     } else {
         showToast('Result saved successfully!');
+        hapticSuccess();
         adminLoadFixtures(); // Refresh dropdown to show updated score
     }
 }
