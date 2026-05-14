@@ -358,6 +358,69 @@
         .admin-panel input[type="number"],
         .admin-panel input[type="text"],
         .admin-panel input[type="date"] { margin-bottom: 10px; }
+
+        /* ── COMPETITIONS & MY STATS ─────────────────────────────────────── */
+        .comp-seg-row {
+            display: flex; margin: 0 16px 16px; background: #e5e5ea; border-radius: 10px; padding: 3px; gap: 3px;
+        }
+        .comp-seg {
+            flex: 1; text-align: center; font-size: 12px; font-weight: 800; padding: 10px 0;
+            border-radius: 8px; color: var(--text-muted); cursor: pointer; text-transform: uppercase;
+        }
+        .comp-seg.active { background: #fff; color: var(--text-main); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .comp-card-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 16px 24px;
+        }
+        .comp-tile {
+            background: var(--card-bg); border-radius: 16px; padding: 18px 14px; text-align: center;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid #efefef; cursor: pointer;
+            min-height: 130px; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+        .comp-tile:active { transform: scale(0.97); }
+        .comp-tile .ct-title { font-size: 13px; font-weight: 800; color: var(--text-main); margin-bottom: 4px; line-height: 1.25; }
+        .comp-tile .ct-sub { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+        .comp-back {
+            padding: 14px 16px 8px; color: var(--red); font-weight: 800; font-size: 14px; cursor: pointer;
+        }
+        .comp-detail-title { font-size: 15px; font-weight: 800; text-align: center; margin: 0 16px 10px; color: var(--text-main); }
+        .comp-iframe-wrap {
+            margin: 0 10px 8px; border-radius: 12px; overflow: hidden;
+            background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+        }
+        .comp-iframe-wrap iframe {
+            width: 100% !important; max-width: 100% !important; border: none; display: block; vertical-align: top;
+        }
+        .comp-sofa-foot {
+            font-size: 11px; color: var(--text-muted); padding: 0 16px 20px; text-align: center;
+        }
+        .comp-sofa-foot a { color: var(--red); font-weight: 700; }
+        .comp-subseg-row { display: flex; margin: 0 16px 12px; gap: 8px; }
+        .comp-subseg {
+            flex: 1; text-align: center; font-size: 11px; font-weight: 800; padding: 9px 6px;
+            border-radius: 8px; background: #f2f2f7; color: var(--text-muted); cursor: pointer; text-transform: uppercase;
+        }
+        .comp-subseg.active { background: var(--text-main); color: #fff; }
+        .wc-groups-wrap {
+            display: flex; gap: 12px; overflow-x: auto; padding: 0 16px 16px;
+            scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+        }
+        .wc-group-slide {
+            flex: 0 0 86%; max-width: 360px; scroll-snap-align: start;
+            background: var(--card-bg); border-radius: 14px; padding: 10px; border: 1px solid #efefef;
+        }
+        .wc-group-slide .wg-label { font-size: 12px; font-weight: 800; margin-bottom: 8px; text-align: center; color: var(--text-main); }
+        .stat-pill-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
+        .stat-pill {
+            font-size: 11px; font-weight: 800; padding: 5px 10px; border-radius: 8px;
+            background: #e5e5ea; color: var(--text-main);
+        }
+        .stat-pill.s { background: #34c75922; color: #1a7a3a; }
+        .stat-pill.r { background: #0a84ff22; color: #0a84ff; }
+        .stat-pill.x { background: #ff3b3022; color: #c41c15; }
+        .mystats-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f2f2f7; font-size: 14px; font-weight: 600; }
+        .mystats-row:last-child { border-bottom: none; }
+        .mystats-val { font-weight: 800; color: var(--red); }
     </style>
 </head>
 <body>
@@ -381,9 +444,8 @@
 
     <div id="screen-home" class="screen active">
         <div class="profile-card">
-            <img src="https://upload.wikimedia.org/wikipedia/en/thumb/7/7a/Manchester_United_FC_crest.svg/120px-Manchester_United_FC_crest.svg.png" style="width:70px; margin-bottom:10px;">
-            <!-- We add onclick="enableAdmin()" so tapping the name unlocks the gate[cite: 1] -->
-<div id="prof-name" onclick="enableAdmin()" style="font-size: 28px; font-weight: 800; margin-bottom: 10px; cursor: pointer;">James</div>
+            <img id="prof-crest-img" src="https://upload.wikimedia.org/wikipedia/en/thumb/7/7a/Manchester_United_FC_crest.svg/120px-Manchester_United_FC_crest.svg.png" style="width:70px; margin-bottom:10px;">
+            <div id="prof-name" onclick="openMyStats()" style="font-size: 28px; font-weight: 800; margin-bottom: 10px; cursor: pointer;">James</div>
             <div id="prof-rank" class="rank-badge">Rank -</div>
             <div id="prof-points" style="font-size: 52px; font-weight: 800;">0</div>
             <div style="font-size: 11px; color: #8e8e93; text-transform: uppercase; font-weight: 800; margin-top: 8px;">Total Points</div>
@@ -428,14 +490,14 @@
         </div>
     </div>
 
-    <div class="card w-50" style="margin: 0; cursor: pointer; background: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 20px 15px; height: 220px; border: 1px solid #e5e5ea;" onclick="switchScreen('screen-table')">
+    <div class="card w-50" style="margin: 0; cursor: pointer; background: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 20px 15px; height: 220px; border: 1px solid #e5e5ea;" onclick="openCompetitionsFromHome()">
         
         <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center;">
             <img src="https://upload.wikimedia.org/wikipedia/en/f/f2/Premier_League_Logo.svg" style="width: 95px; height: auto;">
         </div>
         
         <div style="font-size: 11px; font-weight: 800; color: #3d195b; text-transform: uppercase; letter-spacing: 0.5px; border-top: 1px solid #f2f2f7; width: 100%; text-align: center; padding-top: 12px;">
-            Full Table ➔
+            Tables &amp; cups ➔
         </div>
     </div>
 </div>
@@ -658,6 +720,76 @@
 
 </div>
 
+    <div id="screen-mystats" class="screen" style="display:none;">
+        <div onclick="switchScreen('screen-home')" style="padding:16px; color:var(--red); font-weight:800; font-size:14px; cursor:pointer;">← Back</div>
+        <div class="page-title">Your stats</div>
+        <div class="card" style="margin-top:0;">
+            <div id="mystats-body" style="padding:4px 4px 8px; font-size:13px; color:var(--text-muted); text-align:center;">Loading…</div>
+        </div>
+    </div>
+
+    <div id="screen-competitions" class="screen" style="display:none;">
+        <div id="comp-view-main">
+            <div class="page-title">Competitions</div>
+            <div class="comp-seg-row">
+                <div class="comp-seg active" id="comp-seg-club" onclick="compSetRegion('club', this)">Club</div>
+                <div class="comp-seg" id="comp-seg-intl" onclick="compSetRegion('intl', this)">International</div>
+            </div>
+            <div id="comp-body-club">
+                <div class="comp-card-grid">
+                    <div class="comp-tile" onclick="compOpenDetail('pl')">
+                        <div class="ct-title">Premier League</div>
+                        <div class="ct-sub">Table</div>
+                    </div>
+                    <div class="comp-tile" onclick="compOpenDetail('ucl')">
+                        <div class="ct-title">Champions League</div>
+                        <div class="ct-sub">League &amp; KO</div>
+                    </div>
+                    <div class="comp-tile" onclick="compOpenDetail('fa')">
+                        <div class="ct-title">FA Cup</div>
+                        <div class="ct-sub">Bracket</div>
+                    </div>
+                    <div class="comp-tile" onclick="compOpenDetail('efl')">
+                        <div class="ct-title">League Cup</div>
+                        <div class="ct-sub">Bracket</div>
+                    </div>
+                </div>
+            </div>
+            <div id="comp-body-intl" style="display:none;">
+                <div class="card center-text" style="margin:0 16px 24px; cursor:pointer;" onclick="compOpenWorldCup()">
+                    <div class="fix-date">FIFA World Cup</div>
+                    <div class="fix-teams" style="font-size:20px;">2026</div>
+                    <div class="fix-sub" style="color:var(--red); font-weight:800;">Groups &amp; knockout →</div>
+                </div>
+            </div>
+        </div>
+        <div id="comp-view-detail" style="display:none;">
+            <div class="comp-back" onclick="compCloseDetail()">← Back</div>
+            <div class="comp-detail-title" id="comp-detail-title">—</div>
+            <div id="comp-ucl-tabs-wrap" style="display:none;">
+                <div class="comp-subseg-row">
+                    <div class="comp-subseg active" onclick="compUclTab('lg', this)">League</div>
+                    <div class="comp-subseg" onclick="compUclTab('ko', this)">Knockout</div>
+                </div>
+                <div id="comp-ucl-pane-lg" class="comp-iframe-wrap"><iframe id="comp-iframe-ucl-lg" title="UCL league" loading="lazy" scrolling="no" frameborder="0"></iframe></div>
+                <div id="comp-ucl-pane-ko" class="comp-iframe-wrap" style="display:none;"><iframe id="comp-iframe-ucl-ko" title="UCL knockout" loading="lazy" scrolling="yes" frameborder="0"></iframe></div>
+            </div>
+            <div id="comp-single-wrap" class="comp-iframe-wrap" style="display:none;"><iframe id="comp-iframe-single" title="Standings" loading="lazy" scrolling="no" frameborder="0"></iframe></div>
+            <div class="comp-sofa-foot" id="comp-detail-foot"></div>
+        </div>
+        <div id="comp-view-wc" style="display:none;">
+            <div class="comp-back" onclick="compCloseWorldCup()">← Back</div>
+            <div class="comp-detail-title">World Cup 2026</div>
+            <div class="comp-subseg-row">
+                <div class="comp-subseg active" id="wc-seg-gr" onclick="compWcTab('gr', this)">Groups</div>
+                <div class="comp-subseg" id="wc-seg-ko" onclick="compWcTab('ko', this)">Knockout</div>
+            </div>
+            <div id="comp-wc-groups-mount"></div>
+            <div id="comp-wc-ko-wrap" class="comp-iframe-wrap" style="display:none;"><iframe id="comp-iframe-wc-ko" title="World Cup knockout" loading="lazy" scrolling="yes" frameborder="0"></iframe></div>
+            <div class="comp-sofa-foot" id="comp-wc-foot"></div>
+        </div>
+    </div>
+
     <div id="screen-admin" class="screen">
     <div class="page-title">Admin</div>
 
@@ -809,11 +941,11 @@
     </div>
 
     <div class="bottom-nav">
-        <div class="nav-item active" onclick="switchScreen('screen-home', this)">Home</div>
-        <div class="nav-item" onclick="switchScreen('screen-fixtures', this)">Fixtures</div>
-        <div class="nav-item" onclick="switchScreen('screen-squad', this)">Squad</div>
-        <div class="nav-item" onclick="switchScreen('screen-media', this)">Media</div>
-        <div class="nav-item" onclick="switchScreen('screen-admin', this)">Admin</div>
+        <div class="nav-item active" data-screen="screen-home" onclick="switchScreen('screen-home', this)">Home</div>
+        <div class="nav-item" data-screen="screen-fixtures" onclick="switchScreen('screen-fixtures', this)">Fixtures</div>
+        <div class="nav-item" data-screen="screen-squad" onclick="switchScreen('screen-squad', this)">Squad</div>
+        <div class="nav-item" data-screen="screen-media" onclick="switchScreen('screen-media', this)">Media</div>
+        <div class="nav-item" data-screen="screen-competitions" onclick="openCompetitionsNav()">Comps</div>
     </div>
     
     <script>
@@ -879,9 +1011,288 @@ function switchScreen(screenId, navOrOpts) {
     if (target) target.style.display = 'block';
     
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-    const activeNav = document.querySelector(`.nav-item[onclick*="${screenId}"]`);
+    const activeNav = document.querySelector(`.nav-item[data-screen="${screenId}"]`);
     if (activeNav) activeNav.classList.add('active');
     if (!skipScroll) window.scrollTo(0, 0);
+    if (screenId === 'screen-competitions' && typeof compOnScreenEnter === 'function') compOnScreenEnter();
+    if (screenId === 'screen-mystats' && typeof loadMyStats === 'function') loadMyStats();
+}
+
+function openCompetitionsNav() {
+    window.compPendingFocus = null;
+    switchScreen('screen-competitions');
+}
+
+function openCompetitionsFromHome() {
+    window.compPendingFocus = 'pl';
+    switchScreen('screen-competitions');
+}
+
+function openMyStats() {
+    switchScreen('screen-mystats');
+}
+
+const SOFA_EMBED = {
+    pl: { title: 'Premier League', src: 'https://widgets.sofascore.com/embed/tournament/1/season/76986/standings/Premier%20League%2025%2F26?widgetTitle=Premier%20League%2025%2F26&showCompetitionLogo=true', h: 1123, foot: 'Standings provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/england/premier-league/17#id:76986">Sofascore</a>' },
+    uclLg: { src: 'https://widgets.sofascore.com/embed/tournament/138314/season/76953/standings/UEFA%20Champions%20League%2025%2F26?widgetTitle=UEFA%20Champions%20League%2025%2F26&showCompetitionLogo=true', h: 1763 },
+    uclKo: { src: 'https://widgets.sofascore.com/embed/unique-tournament/7/season/76953/cuptree/10850333?widgetTitle=UEFA%20Champions%20League%2025%2F26%2C%20Knockout%20stage&showCompetitionLogo=true&widgetTheme=light', h: 872 },
+    fa: { title: 'FA Cup', src: 'https://widgets.sofascore.com/embed/unique-tournament/19/season/82557/cuptree/10848004?widgetTitle=FA%20Cup%2025%2F26&showCompetitionLogo=true&widgetTheme=light', h: 872, foot: 'Cup tree provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/england/fa-cup/19#id:82557">Sofascore</a>' },
+    efl: { title: 'EFL Cup', src: 'https://widgets.sofascore.com/embed/unique-tournament/21/season/77500/cuptree/10823514?widgetTitle=EFL%20Cup%2025%2F26&showCompetitionLogo=true&widgetTheme=light', h: 872, foot: 'Cup tree provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/england/efl-cup/21#id:77500">Sofascore</a>' },
+    wcKo: { src: 'https://widgets.sofascore.com/embed/unique-tournament/16/season/58210/cuptree/10560975?widgetTitle=Knockout%20stage&showCompetitionLogo=true&widgetTheme=light', h: 872 }
+};
+
+const WC_GROUP_EMBEDS = [
+    { letter: 'A', src: 'https://widgets.sofascore.com/embed/tournament/3954/season/58210/standings/Group%20A?widgetTitle=Group%20A&showCompetitionLogo=true', h: 431 },
+    { letter: 'B', src: 'https://widgets.sofascore.com/embed/tournament/3955/season/58210/standings/Group%20B?widgetTitle=Group%20B&showCompetitionLogo=true', h: 431 },
+    { letter: 'C', src: 'https://widgets.sofascore.com/embed/tournament/3956/season/58210/standings/Group%20C?widgetTitle=Group%20C&showCompetitionLogo=true', h: 431 },
+    { letter: 'D', src: 'https://widgets.sofascore.com/embed/tournament/3957/season/58210/standings/Group%20D?widgetTitle=Group%20D&showCompetitionLogo=true', h: 431 },
+    { letter: 'E', src: 'https://widgets.sofascore.com/embed/tournament/3958/season/58210/standings/Group%20E?widgetTitle=Group%20E&showCompetitionLogo=true', h: 431 },
+    { letter: 'F', src: 'https://widgets.sofascore.com/embed/tournament/3959/season/58210/standings/Group%20F?widgetTitle=Group%20F&showCompetitionLogo=true', h: 431 },
+    { letter: 'G', src: 'https://widgets.sofascore.com/embed/tournament/3960/season/58210/standings/Group%20G?widgetTitle=Group%20G&showCompetitionLogo=true', h: 431 },
+    { letter: 'H', src: 'https://widgets.sofascore.com/embed/tournament/3961/season/58210/standings/Group%20H?widgetTitle=Group%20H&showCompetitionLogo=true', h: 431 },
+    { letter: 'I', src: 'https://widgets.sofascore.com/embed/tournament/139403/season/58210/standings/Group%20I?widgetTitle=Group%20I&showCompetitionLogo=true', h: 431 },
+    { letter: 'J', src: 'https://widgets.sofascore.com/embed/tournament/139404/season/58210/standings/Group%20J?widgetTitle=Group%20J&showCompetitionLogo=true', h: 431 },
+    { letter: 'K', src: 'https://widgets.sofascore.com/embed/tournament/139405/season/58210/standings/Group%20K?widgetTitle=Group%20K&showCompetitionLogo=true', h: 431 },
+    { letter: 'L', src: 'https://widgets.sofascore.com/embed/tournament/139406/season/58210/standings/Group%20L?widgetTitle=Group%20L&showCompetitionLogo=true', h: 431 }
+];
+
+function compNavigateHome() {
+    document.getElementById('comp-view-detail').style.display = 'none';
+    document.getElementById('comp-view-wc').style.display = 'none';
+    document.getElementById('comp-view-main').style.display = 'block';
+    compSetRegion('club', document.getElementById('comp-seg-club'));
+}
+
+function compOnScreenEnter() {
+    const pf = window.compPendingFocus;
+    if (pf === 'pl') {
+        window.compPendingFocus = null;
+        compOpenDetail('pl');
+    } else {
+        compNavigateHome();
+    }
+}
+
+function compSetRegion(r, el) {
+    const club = document.getElementById('comp-body-club');
+    const intl = document.getElementById('comp-body-intl');
+    const sClub = document.getElementById('comp-seg-club');
+    const sIntl = document.getElementById('comp-seg-intl');
+    if (sClub) sClub.classList.toggle('active', r === 'club');
+    if (sIntl) sIntl.classList.toggle('active', r === 'intl');
+    if (club) club.style.display = r === 'club' ? 'block' : 'none';
+    if (intl) intl.style.display = r === 'intl' ? 'block' : 'none';
+}
+
+function compOpenDetail(key) {
+    document.getElementById('comp-view-main').style.display = 'none';
+    document.getElementById('comp-view-detail').style.display = 'block';
+    const uclW = document.getElementById('comp-ucl-tabs-wrap');
+    const singleW = document.getElementById('comp-single-wrap');
+    const ifSingle = document.getElementById('comp-iframe-single');
+    const foot = document.getElementById('comp-detail-foot');
+    const titleEl = document.getElementById('comp-detail-title');
+    if (key === 'ucl') {
+        titleEl.textContent = 'UEFA Champions League';
+        uclW.style.display = 'block';
+        singleW.style.display = 'none';
+        const ifLg = document.getElementById('comp-iframe-ucl-lg');
+        const ifKo = document.getElementById('comp-iframe-ucl-ko');
+        if (!ifLg.src) {
+            ifLg.src = SOFA_EMBED.uclLg.src;
+            ifLg.style.height = SOFA_EMBED.uclLg.h + 'px';
+        }
+        if (!ifKo.src) {
+            ifKo.src = SOFA_EMBED.uclKo.src;
+            ifKo.style.height = SOFA_EMBED.uclKo.h + 'px';
+        }
+        compUclTab('lg', document.querySelector('#comp-ucl-tabs-wrap .comp-subseg'));
+        foot.innerHTML = 'Data by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/europe/uefa-champions-league/7#id:76953">Sofascore</a>';
+        return;
+    }
+    uclW.style.display = 'none';
+    singleW.style.display = 'block';
+    const cfg = SOFA_EMBED[key];
+    if (!cfg) return;
+    titleEl.textContent = cfg.title || '—';
+    ifSingle.src = cfg.src;
+    ifSingle.style.height = cfg.h + 'px';
+    foot.innerHTML = cfg.foot || 'Provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com">Sofascore</a>';
+}
+
+function compUclTab(mode, el) {
+    document.querySelectorAll('#comp-ucl-tabs-wrap .comp-subseg').forEach(s => s.classList.remove('active'));
+    if (el) el.classList.add('active');
+    const lg = document.getElementById('comp-ucl-pane-lg');
+    const ko = document.getElementById('comp-ucl-pane-ko');
+    if (mode === 'lg') {
+        lg.style.display = 'block';
+        ko.style.display = 'none';
+    } else {
+        lg.style.display = 'none';
+        ko.style.display = 'block';
+    }
+}
+
+function compCloseDetail() {
+    document.getElementById('comp-view-detail').style.display = 'none';
+    document.getElementById('comp-view-main').style.display = 'block';
+}
+
+function compEnsureWcGroupsBuilt() {
+    const mount = document.getElementById('comp-wc-groups-mount');
+    if (!mount || mount.dataset.built) return;
+    mount.dataset.built = '1';
+    const wrap = document.createElement('div');
+    wrap.className = 'wc-groups-wrap';
+    WC_GROUP_EMBEDS.forEach(g => {
+        const slide = document.createElement('div');
+        slide.className = 'wc-group-slide';
+        slide.innerHTML = `<div class="wg-label">Group ${g.letter}</div><iframe title="World Cup Group ${g.letter}" loading="lazy" scrolling="no" frameborder="0" src="${g.src}" style="width:100%!important;height:${g.h}px;border:none;"></iframe>`;
+        wrap.appendChild(slide);
+    });
+    mount.appendChild(wrap);
+    const note = document.createElement('div');
+    note.className = 'comp-sofa-foot';
+    note.style.paddingTop = '4px';
+    note.innerHTML = 'Standings by <a target="_blank" rel="noopener" href="https://www.sofascore.com">Sofascore</a>';
+    mount.appendChild(note);
+}
+
+function compOpenWorldCup() {
+    document.getElementById('comp-view-main').style.display = 'none';
+    document.getElementById('comp-view-wc').style.display = 'block';
+    compEnsureWcGroupsBuilt();
+    compWcTab('gr', document.getElementById('wc-seg-gr'));
+}
+
+function compCloseWorldCup() {
+    document.getElementById('comp-view-wc').style.display = 'none';
+    document.getElementById('comp-view-main').style.display = 'block';
+}
+
+function compWcTab(mode, el) {
+    document.querySelectorAll('#comp-view-wc > .comp-subseg-row .comp-subseg').forEach(s => s.classList.remove('active'));
+    if (el) el.classList.add('active');
+    const mount = document.getElementById('comp-wc-groups-mount');
+    const koWrap = document.getElementById('comp-wc-ko-wrap');
+    const ifKo = document.getElementById('comp-iframe-wc-ko');
+    const foot = document.getElementById('comp-wc-foot');
+    if (mode === 'gr') {
+        mount.style.display = 'block';
+        koWrap.style.display = 'none';
+        foot.innerHTML = '';
+    } else {
+        mount.style.display = 'none';
+        koWrap.style.display = 'block';
+        if (!ifKo.src) {
+            ifKo.src = SOFA_EMBED.wcKo.src;
+            ifKo.style.height = SOFA_EMBED.wcKo.h + 'px';
+        }
+        foot.innerHTML = 'Cup tree by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/world/world-championship/16#id:58210">Sofascore</a>';
+    }
+}
+
+function classifyPredRow(pred, fx) {
+    if (!fx || fx.status !== 'finished' || fx.home_score === null || fx.home_score === undefined || fx.away_score === null) return null;
+    const aH = parseInt(fx.home_score, 10);
+    const aA = parseInt(fx.away_score, 10);
+    const pH = parseInt(pred.pred_home, 10);
+    const pA = parseInt(pred.pred_away, 10);
+    if (isNaN(aH) || isNaN(aA) || isNaN(pH) || isNaN(pA)) return null;
+    if (pH === aH && pA === aA) return 'S';
+    const sgn = (x, y) => (x === y ? 0 : x > y ? 1 : -1);
+    if (sgn(pH, pA) === sgn(aH, aA)) return 'R';
+    return 'X';
+}
+
+async function loadMyStats() {
+    const body = document.getElementById('mystats-body');
+    if (!body || !currentUser) return;
+    body.innerHTML = '<div style="padding:20px;color:var(--text-muted);">Loading…</div>';
+    try {
+        const { data: preds } = await supabaseClient.from('predictions').select('*').eq('user_name', currentUser);
+        if (!preds || !preds.length) {
+            body.innerHTML = '<div style="padding:16px;">No predictions yet.</div>';
+            return;
+        }
+        const ids = [...new Set(preds.map(p => String(p.match_id)))];
+        const { data: fixtures } = await supabaseClient.from('fixtures').select('*').in('custom_id', ids);
+        const fxMap = {};
+        (fixtures || []).forEach(f => { fxMap[String(f.custom_id)] = f; });
+
+        const rows = [];
+        preds.forEach(p => {
+            const fx = fxMap[String(p.match_id)];
+            const tag = classifyPredRow(p, fx);
+            if (tag) rows.push({ tag, pts: parseInt(p.points_won, 10) || 0, fx, pred: p });
+        });
+        const n = rows.length;
+        if (!n) {
+            body.innerHTML = '<div style="padding:16px;">No finished matches with results to score yet.</div>';
+            return;
+        }
+        const exact = rows.filter(r => r.tag === 'S').length;
+        const resultHits = rows.filter(r => r.tag === 'S' || r.tag === 'R').length;
+        const exactPct = Math.round((exact / n) * 1000) / 10;
+        const resultPct = Math.round((resultHits / n) * 1000) / 10;
+        let best = null;
+        rows.forEach(r => {
+            if (!best || r.pts > best.pts) best = r;
+        });
+        let bestLabel = '—';
+        if (best && best.fx) {
+            bestLabel = `${best.fx.home_team} ${best.fx.home_score}-${best.fx.away_score} ${best.fx.away_team} (${best.pts} pts)`;
+        }
+        rows.sort((a, b) => {
+            const da = a.fx && a.fx.match_date ? String(a.fx.match_date) : '';
+            const db = b.fx && b.fx.match_date ? String(b.fx.match_date) : '';
+            if (da !== db) return db.localeCompare(da);
+            return (b.fx?.id || 0) - (a.fx?.id || 0);
+        });
+        const last5 = rows.slice(0, 5);
+        const badges = last5.map(r => {
+            const cls = r.tag === 'S' ? 's' : r.tag === 'R' ? 'r' : 'x';
+            const lab = r.tag === 'S' ? 'S' : r.tag === 'R' ? 'R' : 'X';
+            return `<span class="stat-pill ${cls}" title="S score · R result · X miss">${lab}</span>`;
+        }).join('');
+
+        body.innerHTML = `
+            <div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px;">Rates (${n} matches)</div>
+            <div class="mystats-row"><span>Result accuracy</span><span class="mystats-val">${resultPct}%</span></div>
+            <div class="mystats-row"><span>Exact score accuracy</span><span class="mystats-val">${exactPct}%</span></div>
+            <div class="mystats-row"><span>Exact scores hit</span><span class="mystats-val">${exact}</span></div>
+            <div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;margin:16px 0 8px;">Best match (points)</div>
+            <div style="font-size:13px;font-weight:700;line-height:1.35;">${bestLabel}</div>
+            <div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;margin:16px 0 8px;">Form (last 5)</div>
+            <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;">S = correct score · R = correct result · X = wrong / no points</div>
+            <div class="stat-pill-row">${badges}</div>`;
+    } catch (e) {
+        console.error(e);
+        body.innerHTML = '<div style="padding:16px;color:#c41c15;">Could not load stats.</div>';
+    }
+}
+
+function initMattCrestAdmin() {
+    const img = document.getElementById('prof-crest-img');
+    if (!img || img.dataset.mattBound === '1') return;
+    img.dataset.mattBound = '1';
+    let t = null;
+    const start = () => {
+        if (currentUser !== 'Matt') return;
+        clearTimeout(t);
+        t = setTimeout(() => {
+            t = null;
+            if (currentUser === 'Matt') switchScreen('screen-admin');
+        }, 900);
+    };
+    const end = () => { clearTimeout(t); t = null; };
+    img.addEventListener('touchstart', start, { passive: true });
+    img.addEventListener('touchend', end);
+    img.addEventListener('touchcancel', end);
+    img.addEventListener('mousedown', start);
+    img.addEventListener('mouseup', end);
+    img.addEventListener('mouseleave', end);
 }
 
 function switchMatchTab(tabName, tabElement) {
@@ -1668,6 +2079,7 @@ async function initApp() {
         fetchSquad();
         fetchAllFixtures();
         loadHistorySeasons();
+        initMattCrestAdmin();
     }
 }
 
