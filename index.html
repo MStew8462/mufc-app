@@ -13,6 +13,27 @@
         body { margin: 0; padding: 0; background-color: var(--bg); font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; max-width: 430px; margin: 0 auto; position: relative; padding-bottom: 100px; box-sizing: border-box; }
         * { box-sizing: border-box; }
 
+.comp-logo {
+    width: 95px; /* Increased by ~50% from 65px */
+    height: 95px;
+    object-fit: contain;
+    margin-bottom: 8px;
+}
+
+.comp-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 25px 10px 15px; /* Increased top padding for better centering */
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    border: 1px solid #efefef;
+    cursor: pointer;
+    min-height: 180px; /* Taller tile to fit the much larger logos */
+}
+
 .social-box {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -736,25 +757,29 @@
                 <div class="comp-seg" id="comp-seg-intl" onclick="compSetRegion('intl', this)">International</div>
             </div>
             <div id="comp-body-club">
-                <div class="comp-card-grid">
-                    <div class="comp-tile" onclick="compOpenDetail('pl')">
-                        <div class="ct-title">Premier League</div>
-                        <div class="ct-sub">Table</div>
-                    </div>
-                    <div class="comp-tile" onclick="compOpenDetail('ucl')">
-                        <div class="ct-title">Champions League</div>
-                        <div class="ct-sub">League &amp; KO</div>
-                    </div>
-                    <div class="comp-tile" onclick="compOpenDetail('fa')">
-                        <div class="ct-title">FA Cup</div>
-                        <div class="ct-sub">Bracket</div>
-                    </div>
-                    <div class="comp-tile" onclick="compOpenDetail('efl')">
-                        <div class="ct-title">League Cup</div>
-                        <div class="ct-sub">Bracket</div>
-                    </div>
-                </div>
-            </div>
+    <div class="comp-card-grid">
+        <div class="comp-tile" onclick="compOpenDetail('pl')">
+            <img src="https://upload.wikimedia.org/wikipedia/en/f/f2/Premier_League_Logo.svg" class="comp-logo">
+            <div class="ct-title">Premier League</div>
+            <div class="ct-sub">Table</div>
+        </div>
+        <div class="comp-tile" onclick="compOpenDetail('ucl')">
+            <img src="https://img.sofascore.com/api/v1/unique-tournament/7/image" class="comp-logo">
+            <div class="ct-title">Champions League</div>
+            <div class="ct-sub">League & KO</div>
+        </div>
+        <div class="comp-tile" onclick="compOpenDetail('fa')">
+            <img src="https://img.sofascore.com/api/v1/unique-tournament/19/image" class="comp-logo">
+            <div class="ct-title">FA Cup</div>
+            <div class="ct-sub">Bracket</div>
+        </div>
+        <div class="comp-tile" onclick="compOpenDetail('efl')">
+            <img src="https://img.sofascore.com/api/v1/unique-tournament/21/image" class="comp-logo">
+            <div class="ct-title">League Cup</div>
+            <div class="ct-sub">Bracket</div>
+        </div>
+    </div>
+</div>
             <div id="comp-body-intl" style="display:none;">
                 <div class="card center-text" style="margin:0 16px 24px; cursor:pointer;" onclick="compOpenWorldCup()">
                     <div class="fix-date">FIFA World Cup</div>
@@ -763,6 +788,8 @@
                 </div>
             </div>
         </div>
+
+
         <div id="comp-view-detail" style="display:none;">
             <div class="comp-back" onclick="compCloseDetail()">← Back</div>
             <div class="comp-detail-title" id="comp-detail-title">—</div>
