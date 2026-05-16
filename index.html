@@ -970,7 +970,7 @@
         </div>
     </div>
 
-    <div id="app-news-ticker" style="position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%); width: calc(100% - 24px); max-width: 406px; background: #111112; color: #ffffff; height: 36px; display: flex; align-items: center; font-size: 9px; font-weight: 700; border: 1px solid #da291c; border-radius: 12px; z-index: 10000; overflow: hidden; font-family: 'Inter', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+    <div id="app-news-ticker" style="position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%); width: calc(100% - 24px); max-width: 406px; background: #111112; color: #ffffff; height: 36px; display: flex; align-items: center; font-size: 9.5px; font-weight: 700; border: 1px solid #da291c; border-radius: 12px; z-index: 10000; overflow: hidden; font-family: 'Inter', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
         <div style="background: var(--red); color: white; padding: 0 12px; height: 100%; display: flex; align-items: center; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; z-index: 10002; box-shadow: 4px 0 8px rgba(0,0,0,0.5); font-size: 9px; white-space: nowrap;">
             Latest News
         </div>
@@ -1022,16 +1022,20 @@
     </div>
     
     <script>
-        // Force the news ticker to completely hide when the prediction modal is open
-        // This stops it from blocking your modal's "Cancel" button layout on mobile screens
+        // Force the news ticker AND navigation tabs to stay out of the way of the prediction modal
         const modalObserver = new MutationObserver(() => {
             const modal = document.getElementById('predModal');
             const ticker = document.getElementById('app-news-ticker');
-            if (modal && ticker) {
+            
+            if (modal) {
                 if (modal.classList.contains('active') || modal.style.display === 'flex') {
-                    ticker.style.setProperty('display', 'none', 'important');
+                    // 1. Hide the ticker completely
+                    if (ticker) ticker.style.setProperty('display', 'none', 'important');
+                    // 2. Force the modal overlay to float precisely above the navigation tabs
+                    modal.style.setProperty('z-index', '100010', 'important');
                 } else {
-                    ticker.style.setProperty('display', 'flex', 'important');
+                    if (ticker) ticker.style.setProperty('display', 'flex', 'important');
+                    modal.style.setProperty('z-index', '10000', 'important');
                 }
             }
         });
