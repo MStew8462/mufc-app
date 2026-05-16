@@ -464,10 +464,10 @@
     <div id="ptr-indicator" role="status" aria-live="polite"></div>
 
     <div id="screen-home" class="screen active">
-        <div class="profile-card" id="main-profile-card" style="position: relative;">
-    <div id="admin-ghost-trigger" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; -webkit-touch-callout: none;"></div>
+        <div class="profile-card" id="main-profile-card" style="position: relative;" oncontextmenu="return false;">
+    <div id="admin-ghost-trigger" style="position: absolute; bottom: 0; left: 0; width: 100%; height: 40%; z-index: 5; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;" oncontextmenu="return false;"></div>
     
-    <img id="prof-crest-img" src="https://upload.wikimedia.org/wikipedia/en/thumb/7/7a/Manchester_United_FC_crest.svg/120px-Manchester_United_FC_crest.svg.png" style="width:70px; margin-bottom:10px; pointer-events: none;">
+    <img id="prof-crest-img" src="https://upload.wikimedia.org/wikipedia/en/thumb/7/7a/Manchester_United_FC_crest.svg/120px-Manchester_United_FC_crest.svg.png" style="width:70px; margin-bottom:10px; pointer-events: none; -webkit-user-select: none; user-select: none;" draggable="false" oncontextmenu="return false;">
     <div id="prof-name" onclick="openMyStats()" style="font-size: 28px; font-weight: 800; margin-bottom: 10px; cursor: pointer; position: relative; z-index: 6;">James</div>
     <div id="prof-rank" class="rank-badge" style="position: relative; z-index: 6;">Rank -</div>
     <div id="prof-points" style="font-size: 52px; font-weight: 800; position: relative; z-index: 6;">0</div>
@@ -783,10 +783,12 @@
     </div>
 </div>
             <div id="comp-body-intl" style="display:none;">
-                <div class="card center-text" style="margin:0 16px 24px; cursor:pointer;" onclick="compOpenWorldCup()">
-                    <div class="fix-date">FIFA World Cup</div>
-                    <div class="fix-teams" style="font-size:20px;">2026</div>
-                    <div class="fix-sub" style="color:var(--red); font-weight:800;">Groups &amp; knockout →</div>
+                <div class="comp-tile" style="margin:0 16px 24px; width:auto;" onclick="compOpenWorldCup()">
+                    <img src="https://upload.wikimedia.org/wikipedia/en/thumb/6/67/2026_FIFA_World_Cup_emblem.svg/200px-2026_FIFA_World_Cup_emblem.svg.png"
+                         style="width:80px; height:80px; object-fit:contain; margin-bottom:10px;"
+                         onerror="this.style.display='none'">
+                    <div class="ct-title">FIFA World Cup 2026</div>
+                    <div class="ct-sub">Groups &amp; Knockout</div>
                 </div>
             </div>
         </div>
