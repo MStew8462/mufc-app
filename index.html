@@ -970,18 +970,19 @@
         </div>
     </div>
 
-    <div id="app-news-ticker" style="position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%); width: calc(100% - 24px); max-width: 406px; background: #111112; color: #ffffff; height: 36px; display: flex; align-items: center; font-size: 9px; font-weight: 700; border: 1px solid #da291c; border-radius: 12px; z-index: 10000; overflow: hidden; font-family: 'Inter', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+    <div id="app-news-ticker" style="position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%); width: calc(100% - 24px); max-width: 406px; background: #111112; color: #ffffff; height: 36px; display: flex; align-items: center; font-size: 10px; font-weight: 700; border: 1px solid #da291c; border-radius: 12px; z-index: 10000; overflow: hidden; font-family: 'Inter', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
         <div style="background: var(--red); color: white; padding: 0 12px; height: 100%; display: flex; align-items: center; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; z-index: 10002; box-shadow: 4px 0 8px rgba(0,0,0,0.5); font-size: 9px; white-space: nowrap;">
             Latest News
         </div>
         
         <div class="ticker-window-wrapper" style="flex: 1; min-width: 0; height: 100%; overflow: hidden; position: relative; display: flex; align-items: center; background: #111112; z-index: 10001;">
             <style>
+                /* Global ticker speed - locked permanently at 45 seconds */
                 .ticker-track-container {
                     display: inline-block;
                     white-space: nowrap;
                     padding-left: 100%;
-                    animation: tickerLoop 50s linear infinite;
+                    animation: tickerLoop 50s linear infinite !important;
                     pointer-events: auto;
                 }
 
@@ -991,11 +992,13 @@
                     animation-play-state: paused !important;
                 }
 
-                /* Clean style formatting for working news hyperlinks */
+                /* Enforce matching text sizes and speeds regardless of which stream loads */
                 .ticker-track-container a {
+                    font-size: 10px !important;
                     color: #ffffff !important;
                     text-decoration: none !important;
                     cursor: pointer !important;
+                    display: inline-block !important;
                 }
                 .ticker-track-container a:hover {
                     color: var(--red) !important;
