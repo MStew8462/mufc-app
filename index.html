@@ -977,7 +977,7 @@
         
         <div class="ticker-window-wrapper" style="flex: 1; min-width: 0; height: 100%; overflow: hidden; position: relative; display: flex; align-items: center; background: #111112; z-index: 10001;">
             <style>
-                /* Global ticker speed - locked permanently at 45 seconds */
+                /* Global ticker speed - locked permanently at 50 seconds */
                 .ticker-track-container {
                     display: inline-block;
                     white-space: nowrap;
@@ -1508,18 +1508,42 @@
             }
         }
 
-        window.addEventListener('load', () => { setTimeout(fetchLiveMufcNews, 1000); });
 
         async function initApp() {
-            const loginScreen = document.getElementById('screen-login'); const homeScreen = document.getElementById('screen-home');
-            if (!currentUser) { if (loginScreen) { loginScreen.style.display = 'flex'; loginScreen.classList.add('active'); } if (homeScreen) homeScreen.style.display = 'none'; } else {
-                if (loginScreen) { loginScreen.style.display = 'none'; loginScreen.classList.remove('active'); } if (homeScreen) homeScreen.style.display = 'block';
-                lastActiveScreenId = 'screen-home'; const profileCard = document.querySelector('#screen-home .profile-card'); if (profileCard) profileCard.classList.add('profile-reveal');
-                await fetchNextFixture(); await checkExistingPrediction(); refreshUsers(); fetchSquad(); fetchAllFixtures(); loadHistorySeasons(); initMattCrestAdmin();
-            }
-        }
+    const loginScreen = document.getElementById('screen-login');
+    const homeScreen = document.getElementById('screen-home');
+    if (!currentUser) {
+        if (loginScreen) { loginScreen.style.display = 'flex'; loginScreen.classList.add('active'); }
+        if (homeScreen) homeScreen.style.display = 'none';
+    } else {
+        if (loginScreen) { loginScreen.style.display = 'none'; loginScreen.classList.remove('active'); }
+        if (homeScreen) homeScreen.style.display = 'block';
+        
+        lastActiveScreenId = 'screen-home';
+        const profileCard = document.querySelector('#screen-home .profile-card');
+        if (profileCard) profileCard.classList.add('profile-reveal');
+        
+        // FIRE THE NEWS NOW: The screen is visible, layout boundaries are set, animation won't stall!
+        fetchLiveMufcNews();
 
-        function handleLogin() { const selectedUser = document.getElementById('login-username').value; if (selectedUser) { currentUser = selectedUser; try { localStorage.setItem('mufc_user', selectedUser); } catch(e) {} initApp(); } }
+        await fetchNextFixture();
+        await checkExistingPrediction();
+        refreshUsers();
+        fetchSquad();
+        fetchAllFixtures();
+        loadHistorySeasons();
+        initMattCrestAdmin();
+    }
+}
+
+        function handleLogin() { 
+    const selectedUser = document.getElementById('login-username').value; 
+    if (selectedUser) { 
+        currentUser = selectedUser; 
+        try { localStorage.setItem('mufc_user', selectedUser); } catch(e) {} 
+        initApp(); 
+    } 
+}
         function adminToggle(panelId) { const panel = document.getElementById(panelId); const chevron = document.getElementById(panelId + '-chevron'); if (!panel) return; const isOpen = panel.classList.contains('open'); panel.classList.toggle('open', !isOpen); if (chevron) chevron.classList.toggle('open', !isOpen); }
         function enableAdmin() { masterAdminOverride = true; showToast("Admin Mode Unlocked"); }
 
