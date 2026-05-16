@@ -970,30 +970,28 @@
         </div>
     </div>
 
-    <div id="app-news-ticker" style="position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%); width: calc(100% - 24px); max-width: 406px; background: #111112; color: #ffffff; height: 36px; display: flex; align-items: center; font-size: 8.5px; font-weight: 700; border: 1px solid #da291c; border-radius: 12px; z-index: 10000; overflow: hidden; font-family: 'Inter', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-        
-        <div style="background: var(--red); color: white; padding: 0 12px; height: 100%; display: flex; align-items: center; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; z-index: 10002; box-shadow: 4px 0 8px rgba(0,0,0,0.5); font-size: 10px; white-space: nowrap;">
+    <div id="app-news-ticker" style="position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%); width: calc(100% - 24px); max-width: 406px; background: #111112; color: #ffffff; height: 36px; display: flex; align-items: center; font-size: 9px; font-weight: 700; border: 1px solid #da291c; border-radius: 12px; z-index: 10000; overflow: hidden; font-family: 'Inter', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+        <div style="background: var(--red); color: white; padding: 0 12px; height: 100%; display: flex; align-items: center; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; z-index: 10002; box-shadow: 4px 0 8px rgba(0,0,0,0.5); font-size: 9px; white-space: nowrap;">
             Latest News
         </div>
         
         <div class="ticker-window-wrapper" style="flex: 1; min-width: 0; height: 100%; overflow: hidden; position: relative; display: flex; align-items: center; background: #111112; z-index: 10001;">
             <style>
-                /* Refined CSS Marquee Track */
                 .ticker-track-container {
                     display: inline-block;
                     white-space: nowrap;
                     padding-left: 100%;
-                    animation: tickerLoop 55s linear infinite; /* Keeps your slower easy-reading pace */
+                    animation: tickerLoop 45s linear infinite;
                     pointer-events: auto;
                 }
 
-                /* Freeze the animation loop when the wrapper background is hovered or touched */
+                /* Pause the crawl when you hold anywhere on the black bar area */
                 .ticker-window-wrapper:hover .ticker-track-container,
                 .ticker-window-wrapper:active .ticker-track-container {
                     animation-play-state: paused !important;
                 }
 
-                /* Clean link treatments */
+                /* Clean style formatting for working news hyperlinks */
                 .ticker-track-container a {
                     color: #ffffff !important;
                     text-decoration: none !important;
@@ -1024,1712 +1022,612 @@
     </div>
     
     <script>
-        // FIX: Added Initialization logic for Supabase
-        const SUPABASE_URL = 'https://svnbsbrlnjcimoaxtajm.supabase.co'; 
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bmJzYnJsbmpjaW1vYXh0YWptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NzQxMjEsImV4cCI6MjA5MjM1MDEyMX0.AfiphZzXN6WMaKYl3MikLsOE6FYaD6ysK6VwVka8pts';
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-let masterAdminOverride = false; // This is our "Secret Key"
-
-let currentUser = null; try { currentUser = localStorage.getItem('mufc_user') || null; } catch(e) {}
-let currentMatchId = null;
-let currentMatchLabel = null; // stores "Home vs Away" for modal title
-let currentPrediction = null; // stores existing prediction for edit pre-fill 
-/** Last main tab shown; used to repaint after returning from an external app/browser. */
-let lastActiveScreenId = 'screen-home';
-
-/**
- * iOS / PWA: returning from an external link can leave an invisible full-screen layer
- * (e.g. prediction modal mid-close with display:flex) or a blank compositor frame.
- * Clean up and re-apply the current screen without scrolling.
- */
-function restoreAppSurfaceAfterReturn() {
-    const mod = document.getElementById('predModal');
-    if (mod && !mod.classList.contains('active')) {
-        mod.style.display = 'none';
-    }
-    if (!currentUser) return;
-    const loginScreen = document.getElementById('screen-login');
-    if (loginScreen) {
-        loginScreen.style.display = 'none';
-        loginScreen.classList.remove('active');
-    }
-    switchScreen(lastActiveScreenId, { skipScroll: true });
-}
-
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') restoreAppSurfaceAfterReturn();
-});
-window.addEventListener('pageshow', (e) => {
-    if (e.persisted) restoreAppSurfaceAfterReturn();
-});
-
-/**
- * Handles navigation between screens with an added security check for the Admin tab.
- */
-function switchScreen(screenId, navOrOpts) {
-    const skipScroll = navOrOpts && typeof navOrOpts === 'object' && navOrOpts.skipScroll === true;
-    // SECURITY GATE: Check name OR if the secret override is active[cite: 1]
-    if (screenId === 'screen-admin') {
-        if (currentUser !== 'Matt' && !masterAdminOverride) {
-            showToast("Access Denied: Admins Only");
-            return; 
-        }
-        adminLoadFixtures(); // Populate fixture dropdown each time admin is opened
-        adminLoadSquadForDelete(); // Populate delete player dropdown
-    }
-
-    lastActiveScreenId = screenId;
-
-    document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
-    const target = document.getElementById(screenId);
-    if (target) target.style.display = 'block';
-    
-    document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-    const activeNav = document.querySelector(`.nav-item[data-screen="${screenId}"]`);
-    if (activeNav) activeNav.classList.add('active');
-    if (!skipScroll) window.scrollTo(0, 0);
-    if (screenId === 'screen-competitions' && typeof compOnScreenEnter === 'function') compOnScreenEnter();
-    if (screenId === 'screen-mystats' && typeof loadMyStats === 'function') loadMyStats();
-}
-
-function openCompetitionsNav() {
-    window.compPendingFocus = null;
-    switchScreen('screen-competitions');
-}
-
-function openCompetitionsFromHome() {
-    window.compPendingFocus = 'pl';
-    switchScreen('screen-competitions');
-}
-
-function openMyStats() {
-    switchScreen('screen-mystats');
-}
-
-const SOFA_EMBED = {
-    pl: { title: 'Premier League', src: 'https://widgets.sofascore.com/embed/tournament/1/season/76986/standings/Premier%20League%2025%2F26?widgetTitle=Premier%20League%2025%2F26&showCompetitionLogo=true', h: 1123, foot: 'Standings provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/england/premier-league/17#id:76986">Sofascore</a>' },
-    uclLg: { src: 'https://widgets.sofascore.com/embed/tournament/138314/season/76953/standings/UEFA%20Champions%20League%2025%2F26?widgetTitle=UEFA%20Champions%20League%2025%2F26&showCompetitionLogo=true', h: 1763 },
-    uclKo: { src: 'https://widgets.sofascore.com/embed/unique-tournament/7/season/76953/cuptree/10850333?widgetTitle=UEFA%20Champions%20League%2025%2F26%2C%20Knockout%20stage&showCompetitionLogo=true&widgetTheme=light', h: 872 },
-    fa: { title: 'FA Cup', src: 'https://widgets.sofascore.com/embed/unique-tournament/19/season/82557/cuptree/10848004?widgetTitle=FA%20Cup%2025%2F26&showCompetitionLogo=true&widgetTheme=light', h: 872, foot: 'Cup tree provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/england/fa-cup/19#id:82557">Sofascore</a>' },
-    efl: { title: 'EFL Cup', src: 'https://widgets.sofascore.com/embed/unique-tournament/21/season/77500/cuptree/10823514?widgetTitle=EFL%20Cup%2025%2F26&showCompetitionLogo=true&widgetTheme=light', h: 872, foot: 'Cup tree provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/england/efl-cup/21#id:77500">Sofascore</a>' },
-    wcKo: { src: 'https://widgets.sofascore.com/embed/unique-tournament/16/season/58210/cuptree/10560975?widgetTitle=Knockout%20stage&showCompetitionLogo=true&widgetTheme=light', h: 872 }
-};
-
-const WC_GROUP_EMBEDS = [
-    { letter: 'A', src: 'https://widgets.sofascore.com/embed/tournament/3954/season/58210/standings/Group%20A?widgetTitle=Group%20A&showCompetitionLogo=true', h: 431 },
-    { letter: 'B', src: 'https://widgets.sofascore.com/embed/tournament/3955/season/58210/standings/Group%20B?widgetTitle=Group%20B&showCompetitionLogo=true', h: 431 },
-    { letter: 'C', src: 'https://widgets.sofascore.com/embed/tournament/3956/season/58210/standings/Group%20C?widgetTitle=Group%20C&showCompetitionLogo=true', h: 431 },
-    { letter: 'D', src: 'https://widgets.sofascore.com/embed/tournament/3957/season/58210/standings/Group%20D?widgetTitle=Group%20D&showCompetitionLogo=true', h: 431 },
-    { letter: 'E', src: 'https://widgets.sofascore.com/embed/tournament/3958/season/58210/standings/Group%20E?widgetTitle=Group%20E&showCompetitionLogo=true', h: 431 },
-    { letter: 'F', src: 'https://widgets.sofascore.com/embed/tournament/3959/season/58210/standings/Group%20F?widgetTitle=Group%20F&showCompetitionLogo=true', h: 431 },
-    { letter: 'G', src: 'https://widgets.sofascore.com/embed/tournament/3960/season/58210/standings/Group%20G?widgetTitle=Group%20G&showCompetitionLogo=true', h: 431 },
-    { letter: 'H', src: 'https://widgets.sofascore.com/embed/tournament/3961/season/58210/standings/Group%20H?widgetTitle=Group%20H&showCompetitionLogo=true', h: 431 },
-    { letter: 'I', src: 'https://widgets.sofascore.com/embed/tournament/139403/season/58210/standings/Group%20I?widgetTitle=Group%20I&showCompetitionLogo=true', h: 431 },
-    { letter: 'J', src: 'https://widgets.sofascore.com/embed/tournament/139404/season/58210/standings/Group%20J?widgetTitle=Group%20J&showCompetitionLogo=true', h: 431 },
-    { letter: 'K', src: 'https://widgets.sofascore.com/embed/tournament/139405/season/58210/standings/Group%20K?widgetTitle=Group%20K&showCompetitionLogo=true', h: 431 },
-    { letter: 'L', src: 'https://widgets.sofascore.com/embed/tournament/139406/season/58210/standings/Group%20L?widgetTitle=Group%20L&showCompetitionLogo=true', h: 431 }
-];
-
-function compNavigateHome() {
-    document.getElementById('comp-view-detail').style.display = 'none';
-    document.getElementById('comp-view-wc').style.display = 'none';
-    document.getElementById('comp-view-main').style.display = 'block';
-    compSetRegion('club', document.getElementById('comp-seg-club'));
-}
-
-function compOnScreenEnter() {
-    const pf = window.compPendingFocus;
-    if (pf === 'pl') {
-        window.compPendingFocus = null;
-        compOpenDetail('pl');
-    } else {
-        compNavigateHome();
-    }
-}
-
-function compSetRegion(r, el) {
-    const club = document.getElementById('comp-body-club');
-    const intl = document.getElementById('comp-body-intl');
-    const sClub = document.getElementById('comp-seg-club');
-    const sIntl = document.getElementById('comp-seg-intl');
-    if (sClub) sClub.classList.toggle('active', r === 'club');
-    if (sIntl) sIntl.classList.toggle('active', r === 'intl');
-    if (club) club.style.display = r === 'club' ? 'block' : 'none';
-    if (intl) intl.style.display = r === 'intl' ? 'block' : 'none';
-}
-
-function compOpenDetail(key) {
-    document.getElementById('comp-view-main').style.display = 'none';
-    document.getElementById('comp-view-detail').style.display = 'block';
-    const uclW = document.getElementById('comp-ucl-tabs-wrap');
-    const singleW = document.getElementById('comp-single-wrap');
-    const ifSingle = document.getElementById('comp-iframe-single');
-    const foot = document.getElementById('comp-detail-foot');
-    const titleEl = document.getElementById('comp-detail-title');
-    if (key === 'ucl') {
-        titleEl.textContent = 'UEFA Champions League';
-        uclW.style.display = 'block';
-        singleW.style.display = 'none';
-        const ifLg = document.getElementById('comp-iframe-ucl-lg');
-        const ifKo = document.getElementById('comp-iframe-ucl-ko');
-        if (!ifLg.src) {
-            ifLg.src = SOFA_EMBED.uclLg.src;
-            ifLg.style.height = SOFA_EMBED.uclLg.h + 'px';
-        }
-        if (!ifKo.src) {
-            ifKo.src = SOFA_EMBED.uclKo.src;
-            ifKo.style.height = SOFA_EMBED.uclKo.h + 'px';
-        }
-        compUclTab('lg', document.querySelector('#comp-ucl-tabs-wrap .comp-subseg'));
-        foot.innerHTML = 'Data by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/europe/uefa-champions-league/7#id:76953">Sofascore</a>';
-        return;
-    }
-    uclW.style.display = 'none';
-    singleW.style.display = 'block';
-    const cfg = SOFA_EMBED[key];
-    if (!cfg) return;
-    titleEl.textContent = cfg.title || '—';
-    ifSingle.src = cfg.src;
-    ifSingle.style.height = cfg.h + 'px';
-    foot.innerHTML = cfg.foot || 'Provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com">Sofascore</a>';
-}
-
-function compUclTab(mode, el) {
-    document.querySelectorAll('#comp-ucl-tabs-wrap .comp-subseg').forEach(s => s.classList.remove('active'));
-    if (el) el.classList.add('active');
-    const lg = document.getElementById('comp-ucl-pane-lg');
-    const ko = document.getElementById('comp-ucl-pane-ko');
-    if (mode === 'lg') {
-        lg.style.display = 'block';
-        ko.style.display = 'none';
-    } else {
-        lg.style.display = 'none';
-        ko.style.display = 'block';
-    }
-}
-
-function compCloseDetail() {
-    document.getElementById('comp-view-detail').style.display = 'none';
-    document.getElementById('comp-view-main').style.display = 'block';
-}
-
-function compEnsureWcGroupsBuilt() {
-    const mount = document.getElementById('comp-wc-groups-mount');
-    if (!mount || mount.dataset.built) return;
-    mount.dataset.built = '1';
-    const wrap = document.createElement('div');
-    wrap.className = 'wc-groups-wrap';
-    WC_GROUP_EMBEDS.forEach(g => {
-        const slide = document.createElement('div');
-        slide.className = 'wc-group-slide';
-        slide.innerHTML = `<div class="wg-label">Group ${g.letter}</div><iframe title="World Cup Group ${g.letter}" loading="lazy" scrolling="no" frameborder="0" src="${g.src}" style="width:100%!important;height:${g.h}px;border:none;"></iframe>`;
-        wrap.appendChild(slide);
-    });
-    mount.appendChild(wrap);
-    const note = document.createElement('div');
-    note.className = 'comp-sofa-foot';
-    note.style.paddingTop = '4px';
-    note.innerHTML = 'Standings by <a target="_blank" rel="noopener" href="https://www.sofascore.com">Sofascore</a>';
-    mount.appendChild(note);
-}
-
-function compOpenWorldCup() {
-    document.getElementById('comp-view-main').style.display = 'none';
-    document.getElementById('comp-view-wc').style.display = 'block';
-    compEnsureWcGroupsBuilt();
-    compWcTab('gr', document.getElementById('wc-seg-gr'));
-}
-
-function compCloseWorldCup() {
-    document.getElementById('comp-view-wc').style.display = 'none';
-    document.getElementById('comp-view-main').style.display = 'block';
-}
-
-function compWcTab(mode, el) {
-    document.querySelectorAll('#comp-view-wc > .comp-subseg-row .comp-subseg').forEach(s => s.classList.remove('active'));
-    if (el) el.classList.add('active');
-    const mount = document.getElementById('comp-wc-groups-mount');
-    const koWrap = document.getElementById('comp-wc-ko-wrap');
-    const ifKo = document.getElementById('comp-iframe-wc-ko');
-    const foot = document.getElementById('comp-wc-foot');
-    if (mode === 'gr') {
-        mount.style.display = 'block';
-        koWrap.style.display = 'none';
-        foot.innerHTML = '';
-    } else {
-        mount.style.display = 'none';
-        koWrap.style.display = 'block';
-        if (!ifKo.src) {
-            ifKo.src = SOFA_EMBED.wcKo.src;
-            ifKo.style.height = SOFA_EMBED.wcKo.h + 'px';
-        }
-        foot.innerHTML = 'Cup tree by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/world/world-championship/16#id:58210">Sofascore</a>';
-    }
-}
-
-function classifyPredRow(pred, fx) {
-    if (!fx || fx.status !== 'finished' || fx.home_score === null || fx.home_score === undefined || fx.away_score === null) return null;
-    const aH = parseInt(fx.home_score, 10);
-    const aA = parseInt(fx.away_score, 10);
-    const pH = parseInt(pred.pred_home, 10);
-    const pA = parseInt(pred.pred_away, 10);
-    if (isNaN(aH) || isNaN(aA) || isNaN(pH) || isNaN(pA)) return null;
-    if (pH === aH && pA === aA) return 'S';
-    const sgn = (x, y) => (x === y ? 0 : x > y ? 1 : -1);
-    if (sgn(pH, pA) === sgn(aH, aA)) return 'R';
-    return 'X';
-}
-
-async function loadMyStats() {
-    const body = document.getElementById('mystats-body');
-    if (!body || !currentUser) return;
-    body.innerHTML = '<div style="padding:20px;color:var(--text-muted);">Loading…</div>';
-    try {
-        const { data: preds } = await supabaseClient.from('predictions').select('*').eq('user_name', currentUser);
-        if (!preds || !preds.length) {
-            body.innerHTML = '<div style="padding:16px;">No predictions yet.</div>';
-            return;
-        }
-        const ids = [...new Set(preds.map(p => String(p.match_id)))];
-        const { data: fixtures } = await supabaseClient.from('fixtures').select('*').in('custom_id', ids);
-        const fxMap = {};
-        (fixtures || []).forEach(f => { fxMap[String(f.custom_id)] = f; });
-
-        const rows = [];
-        preds.forEach(p => {
-            const fx = fxMap[String(p.match_id)];
-            const tag = classifyPredRow(p, fx);
-            if (tag) rows.push({ tag, pts: parseInt(p.points_won, 10) || 0, fx, pred: p });
-        });
-        const n = rows.length;
-        if (!n) {
-            body.innerHTML = '<div style="padding:16px;">No finished matches with results to score yet.</div>';
-            return;
-        }
-        const exact = rows.filter(r => r.tag === 'S').length;
-        const resultHits = rows.filter(r => r.tag === 'S' || r.tag === 'R').length;
-        const exactPct = Math.round((exact / n) * 1000) / 10;
-        const resultPct = Math.round((resultHits / n) * 1000) / 10;
-        let best = null;
-        rows.forEach(r => {
-            if (!best || r.pts > best.pts) best = r;
-        });
-        let bestLabel = '—';
-        if (best && best.fx) {
-            bestLabel = `${best.fx.home_team} ${best.fx.home_score}-${best.fx.away_score} ${best.fx.away_team} (${best.pts} pts)`;
-        }
-        rows.sort((a, b) => {
-            const da = a.fx && a.fx.match_date ? String(a.fx.match_date) : '';
-            const db = b.fx && b.fx.match_date ? String(b.fx.match_date) : '';
-            if (da !== db) return db.localeCompare(da);
-            return (b.fx?.id || 0) - (a.fx?.id || 0);
-        });
-        const last5 = rows.slice(0, 5);
-        const badges = last5.map(r => {
-            const cls = r.tag === 'S' ? 's' : r.tag === 'R' ? 'r' : 'x';
-            const lab = r.tag === 'S' ? 'S' : r.tag === 'R' ? 'R' : 'X';
-            return `<span class="stat-pill ${cls}" title="S score · R result · X miss">${lab}</span>`;
-        }).join('');
-
-        body.innerHTML = `
-            <div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px;">Rates (${n} matches)</div>
-            <div class="mystats-row"><span>Result accuracy</span><span class="mystats-val">${resultPct}%</span></div>
-            <div class="mystats-row"><span>Exact score accuracy</span><span class="mystats-val">${exactPct}%</span></div>
-            <div class="mystats-row"><span>Exact scores hit</span><span class="mystats-val">${exact}</span></div>
-            <div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;margin:16px 0 8px;">Best match (points)</div>
-            <div style="font-size:13px;font-weight:700;line-height:1.35;">${bestLabel}</div>
-            <div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;margin:16px 0 8px;">Form (last 5)</div>
-            <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;">S = correct score · R = correct result · X = wrong / no points</div>
-            <div class="stat-pill-row">${badges}</div>`;
-    } catch (e) {
-        console.error(e);
-        body.innerHTML = '<div style="padding:16px;color:#c41c15;">Could not load stats.</div>';
-    }
-}
-
-function initMattCrestAdmin() {
-    const trigger = document.getElementById('admin-ghost-trigger');
-    if (!trigger) return;
-
-    let pressTimer;
-
-    const startPress = (e) => {
-        // Only allow left-clicks on Mac
-        if (e.button && e.button !== 0) return;
-
-        clearTimeout(pressTimer);
-        pressTimer = setTimeout(() => {
-            if (typeof hapticSuccess === 'function') hapticSuccess();
-            switchScreen('screen-admin');
-        }, 2000); // 2 second hold
-    };
-
-    const cancelPress = () => {
-        clearTimeout(pressTimer);
-    };
-
-    // Mobile Listeners
-    trigger.addEventListener('touchstart', startPress, { passive: true });
-    trigger.addEventListener('touchend', cancelPress);
-    trigger.addEventListener('touchcancel', cancelPress);
-
-    // Desktop/Mac Listeners
-    trigger.addEventListener('mousedown', startPress);
-    trigger.addEventListener('mouseup', cancelPress);
-    trigger.addEventListener('mouseleave', cancelPress);
-}
-
-function switchMatchTab(tabName, tabElement) {
-    document.querySelectorAll('.m-content').forEach(content => content.classList.remove('active'));
-    document.querySelectorAll('.m-tab').forEach(tab => tab.classList.remove('active'));
-    document.getElementById('tab-' + tabName).classList.add('active');
-    tabElement.classList.add('active');
-}
-
-async function openMatchCentre(matchCustomId, sofaId, statsUrl, videoUrl) {
-    if (!matchCustomId) return;
-    const searchId = matchCustomId.toString();
-
-    // 1. Reset UI - SWAPPED 'lineups' for 'stats' as default
-    document.getElementById('match-predictions-row').innerHTML = '<div style="font-size:12px; color:#888; padding-left:16px;">Loading predictions...</div>';
-    document.querySelectorAll('.m-content').forEach(c => c.classList.remove('active'));
-    document.querySelectorAll('.m-tab').forEach(t => t.classList.remove('active'));
-    
-    // Set Stats tab and content to active
-    const statsTabBtn = document.querySelector('.m-tab[onclick*="stats"]');
-    if (statsTabBtn) statsTabBtn.classList.add('active');
-    document.getElementById('tab-stats').classList.add('active');
-
-    // ... rest of the function remains the same ...
-
-    // 2. Set Content (lineups iframe - only if element exists)
-    const iframeLineups = document.getElementById('iframe-lineups');
-    if (iframeLineups && sofaId) {
-        iframeLineups.src = `https://widgets.sofascore.com/embed/lineups?id=${sofaId}&widgetTheme=light`;
-    }
-    
-    // 3. Video Logic
-    const videoPlayer = document.getElementById('native-video-player');
-    const highlightsTabBtn = document.querySelector('.m-tab[onclick*="highlights"]');
-    if (videoUrl && videoUrl !== 'undefined' && videoUrl !== '' && videoUrl !== 'null') {
-        videoPlayer.src = videoUrl;
-        videoPlayer.load(); 
-        highlightsTabBtn.style.display = 'block'; 
-    } else {
-        videoPlayer.src = "";
-        highlightsTabBtn.style.display = 'none'; 
-    }
-
-    // 4. Fetch Actual Result and Predictions
-    const [fixtureRes, predsRes] = await Promise.all([
-        supabaseClient.from('fixtures').select('home_score, away_score, actual_scorer, home_team, away_team, match_date, status, stats_image, score_image').eq('custom_id', searchId).maybeSingle(),
-        supabaseClient.from('predictions').select('*').eq('match_id', searchId)
-    ]);
-
-    const fixture = fixtureRes.data;
-    const preds = predsRes.data;
-    const row = document.getElementById('match-predictions-row');
-    row.innerHTML = ''; 
-
-    if (preds && preds.length > 0) {
-        // We'll track if any updates were made to trigger a leaderboard refresh
-        let needsLeaderboardUpdate = false;
-
-        for (const p of preds) {
-            let calculatedPoints = 0;
-
-            if (fixture && fixture.home_score !== null && fixture.away_score !== null) {
-                const actualH = parseInt(fixture.home_score);
-                const actualA = parseInt(fixture.away_score);
-                const predH = parseInt(p.pred_home);
-                const predA = parseInt(p.pred_away);
-
-                if (predH === actualH && predA === actualA) {
-                    // Exact score: 5 pts
-                    calculatedPoints = 5;
-                } else if ((predH - predA) === (actualH - actualA)) {
-                    // Correct result + correct goal difference: 2 pts
-                    calculatedPoints = 2;
-                } else if (
-                    (predH > predA && actualH > actualA) || 
-                    (predH < predA && actualH < actualA) || 
-                    (predH === predA && actualH === actualA)
-                ) {
-                    // Correct result only: 1 pt
-                    calculatedPoints = 1;
-                }
-
-                // Bonus: correct first goalscorer: +3 pts (not awarded if both are "None")
-                if (fixture.actual_scorer && p.pred_scorer &&
-                    p.pred_scorer.toLowerCase() === fixture.actual_scorer.toLowerCase() &&
-                    p.pred_scorer.toLowerCase() !== 'none') {
-                    calculatedPoints += 3;
-                }
-            }
-
-            // Work out score label for display
-            let scoreLabel = '';
-            let scorerCorrect = false;
-            if (fixture && fixture.home_score !== null && fixture.away_score !== null) {
-                const aH = parseInt(fixture.home_score);
-                const aA = parseInt(fixture.away_score);
-                const pH = parseInt(p.pred_home);
-                const pA = parseInt(p.pred_away);
-                if (pH === aH && pA === aA) {
-                    scoreLabel = '⚽ Exact Score';
-                } else if ((pH - pA) === (aH - aA)) {
-                    scoreLabel = '✓ Correct GD';
-                } else if ((pH > pA && aH > aA) || (pH < pA && aH < aA) || (pH === pA && aH === aA)) {
-                    scoreLabel = '✓ Correct Result';
+        // Force the news ticker to completely hide when the prediction modal is open
+        // This stops it from blocking your modal's "Cancel" button layout on mobile screens
+        const modalObserver = new MutationObserver(() => {
+            const modal = document.getElementById('predModal');
+            const ticker = document.getElementById('app-news-ticker');
+            if (modal && ticker) {
+                if (modal.classList.contains('active') || modal.style.display === 'flex') {
+                    ticker.style.setProperty('display', 'none', 'important');
                 } else {
-                    scoreLabel = '✗ No Points';
-                }
-                scorerCorrect = !!(fixture.actual_scorer && p.pred_scorer &&
-                    p.pred_scorer.toLowerCase() === fixture.actual_scorer.toLowerCase() &&
-                    p.pred_scorer.toLowerCase() !== 'none');
-            }
-
-            // If the calculated points differ from what's in the DB, update Supabase
-            if (p.points_won !== calculatedPoints) {
-                await supabaseClient
-                    .from('predictions')
-                    .update({ points_won: calculatedPoints })
-                    .eq('id', p.id);
-                needsLeaderboardUpdate = true;
-            }
-
-            row.innerHTML += `
-                <div class="card" style="flex: 1; min-width: 0; margin: 0; padding: 12px; text-align: center; border: 1px solid #e5e5ea;">
-                    <div style="font-weight: 800; font-size: 11px; text-transform: uppercase;">${p.user_name}</div>
-                    <div style="font-size: 10px; color: var(--red); font-weight: 700;">${calculatedPoints} pts</div>
-                    <div style="font-size: 18px; font-weight: 800; margin: 5px 0;">${p.pred_home}-${p.pred_away}</div>
-                    <div style="font-size: 10px; font-weight: 600; color: var(--text-muted);">${scoreLabel}</div>
-                    <div style="font-size: 10px; font-weight: 700; margin-top: 4px; color: ${scorerCorrect ? '#34c759' : 'var(--text-muted)'};">
-                        ${p.pred_scorer || '-'}${scorerCorrect ? ' ⚽+3' : ''}
-                    </div>
-                </div>`;
-        }
-
-        // Refresh the main leaderboard if points changed[cite: 1]
-        if (needsLeaderboardUpdate) {
-            refreshUsers();
-        }
-
-    } else {
-        row.innerHTML = '<div style="font-size:12px; color:#888; padding-left:16px;">No predictions found.</div>';
-    }
-    // Load match stats image
-    loadMatchStats(fixtureRes.data);
-
-    // Load score image
-    const scoreImgContainer = document.getElementById('match-score-image-container');
-    const scoreImg = document.getElementById('match-score-image');
-    if (fixtureRes.data?.score_image) {
-        scoreImg.src = fixtureRes.data.score_image;
-        scoreImgContainer.style.display = 'block';
-    } else {
-        scoreImg.src = '';
-        scoreImgContainer.style.display = 'none';
-    }
-
-    switchScreen('screen-match');
-}
-
-// ── HELPER: parse a fixture's kickoff into a JS Date ────────────────────────
-function parseKickoffDate(matchDate, kickoffTime) {
-    // matchDate e.g. "Sun, 3 May 2026"  kickoffTime e.g. "15:00 BST" or "15:00"
-    const cleanTime = (kickoffTime || '').replace(/[A-Z]{2,4}/g, '').trim(); // strip BST/GMT
-    const dateStr = `${matchDate} ${cleanTime}`;
-    const parsed = new Date(dateStr);
-    return isNaN(parsed.getTime()) ? null : parsed;
-}
-
-// ── HELPER: format deadline nicely ──────────────────────────────────────────
-function formatDeadline(date) {
-    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const hh = String(date.getHours()).padStart(2,'0');
-    const mm = String(date.getMinutes()).padStart(2,'0');
-    return `${hh}:${mm}, ${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
-}
-
-// ── HELPER: update prediction button state based on deadline ─────────────────
-function updatePredictionLockState(kickoffDate) {
-    const btn = document.getElementById('btn-home-predict');
-    const deadlineMsg = document.getElementById('prediction-deadline-msg');
-    const lockedMsg = document.getElementById('prediction-locked-msg');
-    if (!btn || !deadlineMsg || !lockedMsg) return;
-
-    if (!kickoffDate) return;
-
-    const deadline = new Date(kickoffDate.getTime() - 2 * 60 * 60 * 1000); // 2hrs before kickoff
-    const now = new Date();
-
-    if (now >= deadline) {
-        // Locked
-        btn.style.display = 'none';
-        deadlineMsg.style.display = 'none';
-        lockedMsg.style.display = 'block';
-    } else {
-        // Open
-        btn.style.display = 'block';
-        lockedMsg.style.display = 'none';
-        deadlineMsg.style.display = 'block';
-        deadlineMsg.textContent = `Prediction deadline: ${formatDeadline(deadline)}`;
-    }
-}
-
-async function fetchNextFixture() {
-    setHomeFixtureSkeletons(true);
-    try {
-        const now = new Date();
-        const threeHoursMs = 3 * 60 * 60 * 1000;
-
-        // Fetch all upcoming fixtures
-        const { data: upcomingData } = await supabaseClient
-            .from('fixtures').select('*').eq('status', 'upcoming').order('id', { ascending: true });
-
-        // Fetch all finished fixtures
-        const { data: finishedData } = await supabaseClient
-            .from('fixtures').select('*').eq('status', 'finished').order('id', { ascending: false });
-
-        // ── NEXT MATCH LOGIC ──────────────────────────────────────────────────
-        // Find the first upcoming fixture that is not within 3hrs post-kickoff
-        // (i.e. not one that just kicked off and should still show as "current")
-        let nextFixture = null;
-        let currentFixture = null; // fixture in the 3hr window after kickoff
-
-        if (upcomingData && upcomingData.length > 0) {
-            for (const f of upcomingData) {
-                const ko = parseKickoffDate(f.match_date, f.kickoff_time);
-                if (!ko) { nextFixture = nextFixture || f; continue; }
-                const msSinceKickoff = now - ko;
-                if (msSinceKickoff > 0 && msSinceKickoff < threeHoursMs) {
-                    // Match is "in progress" (within 3hr window)
-                    currentFixture = f;
-                    break;
-                } else if (ko > now) {
-                    // Future fixture
-                    nextFixture = nextFixture || f;
+                    ticker.style.setProperty('display', 'flex', 'important');
                 }
             }
+        });
+        window.addEventListener('DOMContentLoaded', () => {
+            const targetModal = document.getElementById('predModal');
+            if (targetModal) modalObserver.observe(targetModal, { attributes: true, attributeFilter: ['style', 'class'] });
+        });
+
+        // --- ALL ORIGINAL APP SCRIPTS AND ENGINE LOGIC START HERE ---
+        const SUPABASE_URL = 'https://svnbsbrlnjcimoaxtajm.supabase.co'; 
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bmJzYnJsbmpjaW1vYXh0YWptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NzQxMjEsImV4cCI6MjA5MjM1MDEyMX0.AfiphZzXN6WMaKYl3MikLsOE6FYaD6ysK6VwVka8pts';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let masterAdminOverride = false; 
+        let currentUser = null; try { currentUser = localStorage.getItem('mufc_user') || null; } catch(e) {}
+        let currentMatchId = null;
+        let currentMatchLabel = null; 
+        let currentPrediction = null; 
+        let lastActiveScreenId = 'screen-home';
+
+        function restoreAppSurfaceAfterReturn() {
+            const mod = document.getElementById('predModal');
+            if (mod && !mod.classList.contains('active')) {
+                mod.style.display = 'none';
+            }
+            if (!currentUser) return;
+            const loginScreen = document.getElementById('screen-login');
+            if (loginScreen) {
+                loginScreen.style.display = 'none';
+                loginScreen.classList.remove('active');
+            }
+            switchScreen(lastActiveScreenId, { skipScroll: true });
         }
 
-        const displayFixture = currentFixture || nextFixture;
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') restoreAppSurfaceAfterReturn();
+        });
+        window.addEventListener('pageshow', (e) => {
+            if (e.persisted) restoreAppSurfaceAfterReturn();
+        });
 
-        if (displayFixture) {
-            const m = displayFixture;
-            currentMatchId = m.custom_id || m.id;
-            const nextCard = document.getElementById('next-match-card');
-            nextCard.setAttribute('onclick', `openMatchCentre('${currentMatchId}', '${m.sofascore_id}', '${m.stats_url || ''}', '${m.highlights_url || ''}')`);
-            document.getElementById('home-fix-date').innerText = `Next Fixture • ${m.match_date}`;
-            document.getElementById('home-fix-teams').innerText = `${m.home_team} vs ${m.away_team}`;
-            currentMatchLabel = `${m.home_team} vs ${m.away_team}`;
-            document.getElementById('home-fix-sub').innerText = `${m.stadium} • ${m.kickoff_time}`;
-
-            // Update prediction lock state
-            const ko = parseKickoffDate(m.match_date, m.kickoff_time);
-            updatePredictionLockState(ko);
-        }
-
-        // ── LAST MATCH LOGIC ─────────────────────────────────────────────────
-        // Check if the most recent upcoming fixture has just finished (within 3hr window)
-        // If so, treat it as last match with "awaiting score" if no score entered
-        let lastFixture = null;
-        let awaitingScore = false;
-
-        if (upcomingData && upcomingData.length > 0) {
-            const mostRecentUpcoming = upcomingData[0];
-            const ko = parseKickoffDate(mostRecentUpcoming.match_date, mostRecentUpcoming.kickoff_time);
-            if (ko) {
-                const msSinceKickoff = now - ko;
-                if (msSinceKickoff >= threeHoursMs) {
-                    // 3hrs have passed - this match should now show as last match
-                    lastFixture = mostRecentUpcoming;
-                    awaitingScore = true;
+        function switchScreen(screenId, navOrOpts) {
+            const skipScroll = navOrOpts && typeof navOrOpts === 'object' && navOrOpts.skipScroll === true;
+            if (screenId === 'screen-admin') {
+                if (currentUser !== 'Matt' && !masterAdminOverride) {
+                    showToast("Access Denied: Admins Only");
+                    return; 
                 }
+                adminLoadFixtures(); 
+                adminLoadSquadForDelete(); 
+            }
+            lastActiveScreenId = screenId;
+            document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+            const target = document.getElementById(screenId);
+            if (target) target.style.display = 'block';
+            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+            const activeNav = document.querySelector(`.nav-item[data-screen="${screenId}"]`);
+            if (activeNav) activeNav.classList.add('active');
+            if (!skipScroll) window.scrollTo(0, 0);
+            if (screenId === 'screen-competitions' && typeof compOnScreenEnter === 'function') compOnScreenEnter();
+            if (screenId === 'screen-mystats' && typeof loadMyStats === 'function') loadMyStats();
+        }
+
+        function openCompetitionsNav() { window.compPendingFocus = null; switchScreen('screen-competitions'); }
+        function openCompetitionsFromHome() { window.compPendingFocus = 'pl'; switchScreen('screen-competitions'); }
+        function openMyStats() { switchScreen('screen-mystats'); }
+
+        const SOFA_EMBED = {
+            pl: { title: 'Premier League', src: 'https://widgets.sofascore.com/embed/tournament/1/season/76986/standings/Premier%20League%2025%2F26?widgetTitle=Premier%20League%2025%2F26&showCompetitionLogo=true', h: 1123, foot: 'Standings provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/england/premier-league/17#id:76986">Sofascore</a>' },
+            uclLg: { src: 'https://widgets.sofascore.com/embed/tournament/138314/season/76953/standings/UEFA%20Champions%20League%2025%2F26?widgetTitle=UEFA%20Champions%20League%2025%2F26&showCompetitionLogo=true', h: 1763 },
+            uclKo: { src: 'https://widgets.sofascore.com/embed/unique-tournament/7/season/76953/cuptree/10850333?widgetTitle=UEFA%20Champions%20League%2025%2F26%2C%20Knockout%20stage&showCompetitionLogo=true&widgetTheme=light', h: 872 },
+            fa: { title: 'FA Cup', src: 'https://widgets.sofascore.com/embed/unique-tournament/19/season/82557/cuptree/10848004?widgetTitle=FA%20Cup%2025%2F26&showCompetitionLogo=true&widgetTheme=light', h: 872, foot: 'Cup tree provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/england/fa-cup/19#id:82557">Sofascore</a>' },
+            efl: { title: 'EFL Cup', src: 'https://widgets.sofascore.com/embed/unique-tournament/21/season/77500/cuptree/10823514?widgetTitle=EFL%20Cup%2025%2F26&showCompetitionLogo=true&widgetTheme=light', h: 872, foot: 'Cup tree provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/england/efl-cup/21#id:77500">Sofascore</a>' },
+            wcKo: { src: 'https://widgets.sofascore.com/embed/unique-tournament/16/season/58210/cuptree/10560975?widgetTitle=Knockout%20stage&showCompetitionLogo=true&widgetTheme=light', h: 872 }
+        };
+
+        const WC_GROUP_EMBEDS = [
+            { letter: 'A', src: 'https://widgets.sofascore.com/embed/tournament/3954/season/58210/standings/Group%20A?widgetTitle=Group%20A&showCompetitionLogo=true', h: 431 },
+            { letter: 'B', src: 'https://widgets.sofascore.com/embed/tournament/3955/season/58210/standings/Group%20B?widgetTitle=Group%20B&showCompetitionLogo=true', h: 431 },
+            { letter: 'C', src: 'https://widgets.sofascore.com/embed/tournament/3956/season/58210/standings/Group%20C?widgetTitle=Group%20C&showCompetitionLogo=true', h: 431 },
+            { letter: 'D', src: 'https://widgets.sofascore.com/embed/tournament/3957/season/58210/standings/Group%20D?widgetTitle=Group%20D&showCompetitionLogo=true', h: 431 },
+            { letter: 'E', src: 'https://widgets.sofascore.com/embed/tournament/3958/season/58210/standings/Group%20E?widgetTitle=Group%20E&showCompetitionLogo=true', h: 431 },
+            { letter: 'F', src: 'https://widgets.sofascore.com/embed/tournament/3959/season/58210/standings/Group%20F?widgetTitle=Group%20F&showCompetitionLogo=true', h: 431 },
+            { letter: 'G', src: 'https://widgets.sofascore.com/embed/tournament/3960/season/58210/standings/Group%20G?widgetTitle=Group%20G&showCompetitionLogo=true', h: 431 },
+            { letter: 'H', src: 'https://widgets.sofascore.com/embed/tournament/3961/season/58210/standings/Group%20H?widgetTitle=Group%20H&showCompetitionLogo=true', h: 431 },
+            { letter: 'I', src: 'https://widgets.sofascore.com/embed/tournament/139403/season/58210/standings/Group%20I?widgetTitle=Group%20I&showCompetitionLogo=true', h: 431 },
+            { letter: 'J', src: 'https://widgets.sofascore.com/embed/tournament/139404/season/58210/standings/Group%20J?widgetTitle=Group%20J&showCompetitionLogo=true', h: 431 },
+            { letter: 'K', src: 'https://widgets.sofascore.com/embed/tournament/139405/season/58210/standings/Group%20K?widgetTitle=Group%20K&showCompetitionLogo=true', h: 431 },
+            { letter: 'L', src: 'https://widgets.sofascore.com/embed/tournament/139406/season/58210/standings/Group%20L?widgetTitle=Group%20L&showCompetitionLogo=true', h: 431 }
+        ];
+
+        function compNavigateHome() {
+            document.getElementById('comp-view-detail').style.display = 'none';
+            document.getElementById('comp-view-wc').style.display = 'none';
+            document.getElementById('comp-view-main').style.display = 'block';
+            compSetRegion('club', document.getElementById('comp-seg-club'));
+        }
+
+        function compOnScreenEnter() {
+            const pf = window.compPendingFocus;
+            if (pf === 'pl') { window.compPendingFocus = null; compOpenDetail('pl'); } else { compNavigateHome(); }
+        }
+
+        function compSetRegion(r, el) {
+            const club = document.getElementById('comp-body-club');
+            const intl = document.getElementById('comp-body-intl');
+            const sClub = document.getElementById('comp-seg-club');
+            const sIntl = document.getElementById('comp-seg-intl');
+            if (sClub) sClub.classList.toggle('active', r === 'club');
+            if (sIntl) sIntl.classList.toggle('active', r === 'intl');
+            if (club) club.style.display = r === 'club' ? 'block' : 'none';
+            if (intl) intl.style.display = r === 'intl' ? 'block' : 'none';
+        }
+
+        function compOpenDetail(key) {
+            document.getElementById('comp-view-main').style.display = 'none';
+            document.getElementById('comp-view-detail').style.display = 'block';
+            const uclW = document.getElementById('comp-ucl-tabs-wrap');
+            const singleW = document.getElementById('comp-single-wrap');
+            const ifSingle = document.getElementById('comp-iframe-single');
+            const foot = document.getElementById('comp-detail-foot');
+            const titleEl = document.getElementById('comp-detail-title');
+            if (key === 'ucl') {
+                titleEl.textContent = 'UEFA Champions League';
+                uclW.style.display = 'block';
+                singleW.style.display = 'none';
+                const ifLg = document.getElementById('comp-iframe-ucl-lg');
+                const ifKo = document.getElementById('comp-iframe-ucl-ko');
+                if (!ifLg.src) { ifLg.src = SOFA_EMBED.uclLg.src; ifLg.style.height = SOFA_EMBED.uclLg.h + 'px'; }
+                if (!ifKo.src) { ifKo.src = SOFA_EMBED.uclKo.src; ifKo.style.height = SOFA_EMBED.uclKo.h + 'px'; }
+                compUclTab('lg', document.querySelector('#comp-ucl-tabs-wrap .comp-subseg'));
+                foot.innerHTML = 'Data by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/europe/uefa-champions-league/7#id:76953">Sofascore</a>';
+                return;
+            }
+            uclW.style.display = 'none';
+            singleW.style.display = 'block';
+            const cfg = SOFA_EMBED[key];
+            if (!cfg) return;
+            titleEl.textContent = cfg.title || '—';
+            ifSingle.src = cfg.src;
+            ifSingle.style.height = cfg.h + 'px';
+            foot.innerHTML = cfg.foot || 'Provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com">Sofascore</a>';
+        }
+
+        function compUclTab(mode, el) {
+            document.querySelectorAll('#comp-ucl-tabs-wrap .comp-subseg').forEach(s => s.classList.remove('active'));
+            if (el) el.classList.add('active');
+            const lg = document.getElementById('comp-ucl-pane-lg');
+            const ko = document.getElementById('comp-ucl-pane-ko');
+            if (mode === 'lg') { lg.style.display = 'block'; ko.style.display = 'none'; } else { lg.style.display = 'none'; ko.style.display = 'block'; }
+        }
+
+        function compCloseDetail() { document.getElementById('comp-view-detail').style.display = 'none'; document.getElementById('comp-view-main').style.display = 'block'; }
+
+        function compEnsureWcGroupsBuilt() {
+            const mount = document.getElementById('comp-wc-groups-mount');
+            if (!mount || mount.dataset.built) return;
+            mount.dataset.built = '1';
+            const wrap = document.createElement('div');
+            wrap.className = 'wc-groups-wrap';
+            WC_GROUP_EMBEDS.forEach(g => {
+                const slide = document.createElement('div');
+                slide.className = 'wc-group-slide';
+                slide.innerHTML = `<div class="wg-label">Group ${g.letter}</div><iframe title="World Cup Group ${g.letter}" loading="lazy" scrolling="no" frameborder="0" src="${g.src}" style="width:100%!important;height:${g.h}px;border:none;"></iframe>`;
+                wrap.appendChild(slide);
+            });
+            mount.appendChild(wrap);
+            const note = document.createElement('div');
+            note.className = 'comp-sofa-foot';
+            note.style.paddingTop = '4px';
+            note.innerHTML = 'Standings by <a target="_blank" rel="noopener" href="https://www.sofascore.com">Sofascore</a>';
+            mount.appendChild(note);
+        }
+
+        function compOpenWorldCup() { document.getElementById('comp-view-main').style.display = 'none'; document.getElementById('comp-view-wc').style.display = 'block'; compEnsureWcGroupsBuilt(); compWcTab('gr', document.getElementById('wc-seg-gr')); }
+        function compCloseWorldCup() { document.getElementById('comp-view-wc').style.display = 'none'; document.getElementById('comp-view-main').style.display = 'block'; }
+
+        function compWcTab(mode, el) {
+            document.querySelectorAll('#comp-view-wc > .comp-subseg-row .comp-subseg').forEach(s => s.classList.remove('active'));
+            if (el) el.classList.add('active');
+            const mount = document.getElementById('comp-wc-groups-mount');
+            const koWrap = document.getElementById('comp-wc-ko-wrap');
+            const ifKo = document.getElementById('comp-iframe-wc-ko');
+            const foot = document.getElementById('comp-wc-foot');
+            if (mode === 'gr') { mount.style.display = 'block'; koWrap.style.display = 'none'; foot.innerHTML = ''; } else {
+                mount.style.display = 'none'; koWrap.style.display = 'block';
+                if (!ifKo.src) { ifKo.src = SOFA_EMBED.wcKo.src; ifKo.style.height = SOFA_EMBED.wcKo.h + 'px'; }
+                foot.innerHTML = 'Cup tree by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/world/world-championship/16#id:58210">Sofascore</a>';
             }
         }
 
-        // Fall back to most recent finished fixture
-        if (!lastFixture && finishedData && finishedData.length > 0) {
-            lastFixture = finishedData[0];
+        function classifyPredRow(pred, fx) {
+            if (!fx || fx.status !== 'finished' || fx.home_score === null || fx.home_score === undefined || fx.away_score === null) return null;
+            const aH = parseInt(fx.home_score, 10); const aA = parseInt(fx.away_score, 10);
+            const pH = parseInt(pred.pred_home, 10); const pA = parseInt(pred.pred_away, 10);
+            if (isNaN(aH) || isNaN(aA) || isNaN(pH) || isNaN(pA)) return null;
+            if (pH === aH && pA === aA) return 'S';
+            const sgn = (x, y) => (x === y ? 0 : x > y ? 1 : -1);
+            if (sgn(pH, pA) === sgn(aH, aA)) return 'R';
+            return 'X';
         }
 
-        if (lastFixture) {
-            const l = lastFixture;
-            const lastCard = document.getElementById('last-match-card');
-            if (lastCard) {
-                lastCard.setAttribute('onclick', `openMatchCentre('${l.custom_id}', '${l.sofascore_id}', '${l.stats_url || ''}', '${l.highlights_url || ''}')`);
-            }
-            if (awaitingScore) {
-                document.getElementById('last-fix-date').innerText = `${l.match_date} • Full Time`;
-                document.getElementById('last-fix-teams').innerText = `${l.home_team} vs ${l.away_team}`;
-                document.getElementById('last-fix-sub').innerText = `⏳ Awaiting final score...`;
-            } else {
-                document.getElementById('last-fix-date').innerText = `${l.match_date} • Full Time`;
-                document.getElementById('last-fix-teams').innerText = `${l.home_team} ${l.home_score} - ${l.away_score} ${l.away_team}`;
-                document.getElementById('last-fix-sub').innerText = 'Tap to view stats & predictions ➔';
+        async function loadMyStats() {
+            const body = document.getElementById('mystats-body');
+            if (!body || !currentUser) return;
+            body.innerHTML = '<div style="padding:20px;color:var(--text-muted);">Loading…</div>';
+            try {
+                const { data: preds } = await supabaseClient.from('predictions').select('*').eq('user_name', currentUser);
+                if (!preds || !preds.length) { body.innerHTML = '<div style="padding:16px;">No predictions yet.</div>'; return; }
+                const ids = [...new Set(preds.map(p => String(p.match_id)))];
+                const { data: fixtures } = await supabaseClient.from('fixtures').select('*').in('custom_id', ids);
+                const fxMap = {}; (fixtures || []).forEach(f => { fxMap[String(f.custom_id)] = f; });
+                const rows = [];
+                preds.forEach(p => { const fx = fxMap[String(p.match_id)]; const tag = classifyPredRow(p, fx); if (tag) rows.push({ tag, pts: parseInt(p.points_won, 10) || 0, fx, pred: p }); });
+                const n = rows.length; if (!n) { body.innerHTML = '<div style="padding:16px;">No finished matches with results to score yet.</div>'; return; }
+                const exact = rows.filter(r => r.tag === 'S').length; const resultHits = rows.filter(r => r.tag === 'S' || r.tag === 'R').length;
+                const exactPct = Math.round((exact / n) * 1000) / 10; const resultPct = Math.round((resultHits / n) * 1000) / 10;
+                let best = null; rows.forEach(r => { if (!best || r.pts > best.pts) best = r; });
+                let bestLabel = '—'; if (best && best.fx) { bestLabel = `${best.fx.home_team} ${best.fx.home_score}-${best.fx.away_score} ${best.fx.away_team} (${best.pts} pts)`; }
+                rows.sort((a, b) => { const da = a.fx && a.fx.match_date ? String(a.fx.match_date) : ''; const db = b.fx && b.fx.match_date ? String(b.fx.match_date) : ''; if (da !== db) return db.localeCompare(da); return (b.fx?.id || 0) - (a.fx?.id || 0); });
+                const last5 = rows.slice(0, 5);
+                const badges = last5.map(r => { const cls = r.tag === 'S' ? 's' : r.tag === 'R' ? 'r' : 'x'; const lab = r.tag === 'S' ? 'S' : r.tag === 'R' ? 'R' : 'X'; return `<span class="stat-pill ${cls}" title="S score · R result · X miss">${lab}</span>`; }).join('');
+                body.innerHTML = `<div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px;">Rates (${n} matches)</div><div class="mystats-row"><span>Result accuracy</span><span class="mystats-val">${resultPct}%</span></div><div class="mystats-row"><span>Exact score accuracy</span><span class="mystats-val">${exactPct}%</span></div><div class="mystats-row"><span>Exact scores hit</span><span class="mystats-val">${exact}</span></div><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;margin:16px 0 8px;">Best match (points)</div><div style="font-size:13px;font-weight:700;line-height:1.35;">${bestLabel}</div><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;margin:16px 0 8px;">Form (last 5)</div><div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;">S = correct score · R = correct result · X = wrong / no points</div><div class="stat-pill-row">${badges}</div>`;
+            } catch (e) { console.error(e); body.innerHTML = '<div style="padding:16px;color:#c41c15;">Could not load stats.</div>'; }
+        }
+
+        function initMattCrestAdmin() {
+            const trigger = document.getElementById('admin-ghost-trigger'); if (!trigger) return;
+            let pressTimer;
+            const startPress = (e) => { if (e.button && e.button !== 0) return; clearTimeout(pressTimer); pressTimer = setTimeout(() => { if (typeof hapticSuccess === 'function') hapticSuccess(); switchScreen('screen-admin'); }, 2000); };
+            const cancelPress = () => { clearTimeout(pressTimer); };
+            trigger.addEventListener('touchstart', startPress, { passive: true }); trigger.addEventListener('touchend', cancelPress); trigger.addEventListener('touchcancel', cancelPress);
+            trigger.addEventListener('mousedown', startPress); trigger.addEventListener('mouseup', cancelPress); trigger.addEventListener('mouseleave', cancelPress);
+        }
+
+        function switchMatchTab(tabName, tabElement) {
+            document.querySelectorAll('.m-content').forEach(content => content.classList.remove('active'));
+            document.querySelectorAll('.m-tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active'); tabElement.classList.add('active');
+        }
+
+        async function openMatchCentre(matchCustomId, sofaId, statsUrl, videoUrl) {
+            if (!matchCustomId) return; const searchId = matchCustomId.toString();
+            document.getElementById('match-predictions-row').innerHTML = '<div style="font-size:12px; color:#888; padding-left:16px;">Loading predictions...</div>';
+            document.querySelectorAll('.m-content').forEach(c => c.classList.remove('active')); document.querySelectorAll('.m-tab').forEach(t => t.classList.remove('active'));
+            const statsTabBtn = document.querySelector('.m-tab[onclick*="stats"]'); if (statsTabBtn) statsTabBtn.classList.add('active');
+            document.getElementById('tab-stats').classList.add('active');
+            const iframeLineups = document.getElementById('iframe-lineups'); if (iframeLineups && sofaId) { iframeLineups.src = `https://widgets.sofascore.com/embed/lineups?id=${sofaId}&widgetTheme=light`; }
+            const videoPlayer = document.getElementById('native-video-player'); const highlightsTabBtn = document.querySelector('.m-tab[onclick*="highlights"]');
+            if (videoUrl && videoUrl !== 'undefined' && videoUrl !== '' && videoUrl !== 'null') { videoPlayer.src = videoUrl; videoPlayer.load(); highlightsTabBtn.style.display = 'block'; } else { videoPlayer.src = ""; highlightsTabBtn.style.display = 'none'; }
+            const [fixtureRes, predsRes] = await Promise.all([supabaseClient.from('fixtures').select('home_score, away_score, actual_scorer, home_team, away_team, match_date, status, stats_image, score_image').eq('custom_id', searchId).maybeSingle(), supabaseClient.from('predictions').select('*').eq('match_id', searchId)]);
+            const fixture = fixtureRes.data; const preds = predsRes.data; const row = document.getElementById('match-predictions-row'); row.innerHTML = '';
+            if (preds && preds.length > 0) {
+                let needsLeaderboardUpdate = false;
+                for (const p of preds) {
+                    let calculatedPoints = 0;
+                    if (fixture && fixture.home_score !== null && fixture.away_score !== null) {
+                        const actualH = parseInt(fixture.home_score); const actualA = parseInt(fixture.away_score);
+                        const predH = parseInt(p.pred_home); const predA = parseInt(p.pred_away);
+                        if (predH === actualH && predA === actualA) { calculatedPoints = 5; } else if ((predH - predA) === (actualH - actualA)) { calculatedPoints = 2; } else if ((predH > predA && actualH > actualA) || (predH < predA && actualH < actualA) || (predH === predA && actualH === actualA)) { calculatedPoints = 1; }
+                        if (fixture.actual_scorer && p.pred_scorer && p.pred_scorer.toLowerCase() === fixture.actual_scorer.toLowerCase() && p.pred_scorer.toLowerCase() !== 'none') { calculatedPoints += 3; }
+                    }
+                    let scoreLabel = ''; let scorerCorrect = false;
+                    if (fixture && fixture.home_score !== null && fixture.away_score !== null) {
+                        const aH = parseInt(fixture.home_score); const aA = parseInt(fixture.away_score); const pH = parseInt(p.pred_home); const pA = parseInt(p.pred_away);
+                        if (pH === aH && pA === aA) { scoreLabel = '⚽ Exact Score'; } else if ((pH - pA) === (aH - aA)) { scoreLabel = '✓ Correct GD'; } else if ((pH > pA && aH > aA) || (pH < pA && aH < aA) || (pH === pA && aH === aA)) { scoreLabel = '✓ Correct Result'; } else { scoreLabel = '✗ No Points'; }
+                        scorerCorrect = !!(fixture.actual_scorer && p.pred_scorer && p.pred_scorer.toLowerCase() === fixture.actual_scorer.toLowerCase() && p.pred_scorer.toLowerCase() !== 'none');
+                    }
+                    if (p.points_won !== calculatedPoints) { await supabaseClient.from('predictions').update({ points_won: calculatedPoints }).eq('id', p.id); needsLeaderboardUpdate = true; }
+                    row.innerHTML += `<div class="card" style="flex: 1; min-width: 0; margin: 0; padding: 12px; text-align: center; border: 1px solid #e5e5ea;"><div style="font-weight: 800; font-size: 11px; text-transform: uppercase;">${p.user_name}</div><div style="font-size: 10px; color: var(--red); font-weight: 700;">${calculatedPoints} pts</div><div style="font-size: 18px; font-weight: 800; margin: 5px 0;">${p.pred_home}-${p.pred_away}</div><div style="font-size: 10px; font-weight: 600; color: var(--text-muted);">${scoreLabel}</div><div style="font-size: 10px; font-weight: 700; margin-top: 4px; color: ${scorerCorrect ? '#34c759' : 'var(--text-muted)'};">${p.pred_scorer || '-'}${scorerCorrect ? ' ⚽+3' : ''}</div></div>`;
+                }
+                if (needsLeaderboardUpdate) { refreshUsers(); }
+            } else { row.innerHTML = '<div style="font-size:12px; color:#888; padding-left:16px;">No predictions found.</div>'; }
+            loadMatchStats(fixtureRes.data);
+            const scoreImgContainer = document.getElementById('match-score-image-container'); const scoreImg = document.getElementById('match-score-image');
+            if (fixtureRes.data?.score_image) { scoreImg.src = fixtureRes.data.score_image; scoreImgContainer.style.display = 'block'; } else { scoreImg.src = ''; scoreImgContainer.style.display = 'none'; }
+            switchScreen('screen-match');
+        }
+
+        function parseKickoffDate(matchDate, kickoffTime) {
+            const cleanTime = (kickoffTime || '').replace(/[A-Z]{2,4}/g, '').trim(); const dateStr = `${matchDate} ${cleanTime}`; const parsed = new Date(dateStr); return isNaN(parsed.getTime()) ? null : parsed;
+        }
+
+        function formatDeadline(date) {
+            const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']; const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const hh = String(date.getHours()).padStart(2,'0'); const mm = String(date.getMinutes()).padStart(2,'0'); return `${hh}:${mm}, ${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+        }
+
+        function updatePredictionLockState(kickoffDate) {
+            const btn = document.getElementById('btn-home-predict'); const deadlineMsg = document.getElementById('prediction-deadline-msg'); const lockedMsg = document.getElementById('prediction-locked-msg'); if (!btn || !deadlineMsg || !lockedMsg) return; if (!kickoffDate) return;
+            const deadline = new Date(kickoffDate.getTime() - 2 * 60 * 60 * 1000); const now = new Date();
+            if (now >= deadline) { btn.style.display = 'none'; deadlineMsg.style.display = 'none'; lockedMsg.style.display = 'block'; } else { btn.style.display = 'block'; lockedMsg.style.display = 'none'; deadlineMsg.style.display = 'block'; deadlineMsg.textContent = `Prediction deadline: ${formatDeadline(deadline)}`; }
+        }
+
+        async function fetchNextFixture() {
+            setHomeFixtureSkeletons(true);
+            try {
+                const now = new Date(); const threeHoursMs = 3 * 60 * 60 * 1000;
+                const { data: upcomingData } = await supabaseClient.from('fixtures').select('*').eq('status', 'upcoming').order('id', { ascending: true });
+                const { data: finishedData } = await supabaseClient.from('fixtures').select('*').eq('status', 'finished').order('id', { ascending: false });
+                let nextFixture = null; let currentFixture = null;
+                if (upcomingData && upcomingData.length > 0) {
+                    for (const f of upcomingData) {
+                        const ko = parseKickoffDate(f.match_date, f.kickoff_time); if (!ko) { nextFixture = nextFixture || f; continue; }
+                        const msSinceKickoff = now - ko; if (msSinceKickoff > 0 && msSinceKickoff < threeHoursMs) { currentFixture = f; break; } else if (ko > now) { nextFixture = nextFixture || f; }
+                    }
+                }
+                const displayFixture = currentFixture || nextFixture;
+                if (displayFixture) {
+                    const m = displayFixture; currentMatchId = m.custom_id || m.id;
+                    const nextCard = document.getElementById('next-match-card'); nextCard.setAttribute('onclick', `openMatchCentre('${currentMatchId}', '${m.sofascore_id}', '${m.stats_url || ''}', '${m.highlights_url || ''}')`);
+                    document.getElementById('home-fix-date').innerText = `Next Fixture • ${m.match_date}`; document.getElementById('home-fix-teams').innerText = `${m.home_team} vs ${m.away_team}`; currentMatchLabel = `${m.home_team} vs ${m.away_team}`; document.getElementById('home-fix-sub').innerText = `${m.stadium} • ${m.kickoff_time}`;
+                    const ko = parseKickoffDate(m.match_date, m.kickoff_time); updatePredictionLockState(ko);
+                }
+                let lastFixture = null; let awaitingScore = false;
+                if (upcomingData && upcomingData.length > 0) {
+                    const mostRecentUpcoming = upcomingData[0]; const ko = parseKickoffDate(mostRecentUpcoming.match_date, mostRecentUpcoming.kickoff_time);
+                    if (ko) { const msSinceKickoff = now - ko; if (msSinceKickoff >= threeHoursMs) { lastFixture = mostRecentUpcoming; awaitingScore = true; } }
+                }
+                if (!lastFixture && finishedData && finishedData.length > 0) { lastFixture = finishedData[0]; }
+                if (lastFixture) {
+                    const l = lastFixture; const lastCard = document.getElementById('last-match-card'); if (lastCard) { lastCard.setAttribute('onclick', `openMatchCentre('${l.custom_id}', '${l.sofascore_id}', '${l.stats_url || ''}', '${l.highlights_url || ''}')`); }
+                    if (awaitingScore) { document.getElementById('last-fix-date').innerText = `${l.match_date} • Full Time`; document.getElementById('last-fix-teams').innerText = `${l.home_team} vs ${l.away_team}`; document.getElementById('last-fix-sub').innerText = `⏳ Awaiting final score...`; } else { document.getElementById('last-fix-date').innerText = `${l.match_date} • Full Time`; document.getElementById('last-fix-teams').innerText = `${l.home_team} ${l.home_score} - ${l.away_score} ${l.away_team}`; document.getElementById('last-fix-sub').innerText = 'Tap to view stats & predictions ➔'; }
+                }
+            } catch (err) { console.error("Fixture Error:", err); } finally { setHomeFixtureSkeletons(false); }
+        }
+
+        async function fetchAllFixtures() {
+            try {
+                const { data, error } = await supabaseClient.from('fixtures').select('*').order('id', { ascending: true }); if (error) throw error;
+                const histCont = document.getElementById('list-history'); const lastCont = document.getElementById('list-last-match'); const upcoCont = document.getElementById('list-upcoming');
+                histCont.innerHTML = ''; lastCont.innerHTML = ''; upcoCont.innerHTML = ''; const finished = data.filter(f => f.status === 'finished'); const upcoming = data.filter(f => f.status === 'upcoming');
+                if (finished.length > 0) {
+                    const last = finished[finished.length - 1];
+                    lastCont.innerHTML = `<div class="card row-flex" onclick="openMatchCentre('${last.custom_id}', '${last.sofascore_id}', '${last.stats_url || ''}', '${last.highlights_url || ''}')"><div><div class="fix-date">${last.match_date}</div><div class="fix-teams">${last.home_team} ${last.home_score} - ${last.away_score} ${last.away_team}</div></div><div style="font-weight: 800; color: var(--red);">➔</div></div>`;
+                    finished.slice(0, -1).forEach(f => { histCont.innerHTML += `<div class="card row-flex" style="border-left: 4px solid #8e8e93; opacity: 0.8; margin-bottom: 8px; padding: 12px 20px;" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')"><div><div class="fix-date" style="font-size: 10px;">${f.match_date}</div><div class="fix-teams" style="font-size: 14px;">${f.home_team} ${f.home_score}-${f.away_score} ${f.away_team}</div></div><div style="font-weight: 800; color: var(--red);">➔</div></div>`; });
+                }
+                upcoming.forEach(f => { upcoCont.innerHTML += `<div class="card row-flex" style="border-left: 4px solid var(--red)" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')"><div><div class="fix-date">${f.match_date} • ${f.kickoff_time}</div><div class="fix-teams">${f.home_team} vs ${f.away_team}</div><div class="fix-sub">${f.competition} • ${f.stadium}</div></div><div style="font-weight: 800; color: var(--red);">➔</div></div>`; });
+            } catch (err) { console.error("Fixtures List Error:", err); }
+        }
+
+        async function refreshUsers() {
+            const nameDisplay = document.getElementById('prof-name'); if (nameDisplay) nameDisplay.innerText = currentUser;
+            setLeaderboardSkeleton(true);
+            const { data: preds } = await supabaseClient.from('predictions').select('user_name, points_won');
+            const table = document.getElementById('leaderboard-table');
+            if (!preds) { if (table) { table.innerHTML = '<tr><th>Pos</th><th>User</th><th class="num">Pts</th></tr><tr><td colspan="3" style="text-align:center;padding:16px;color:#888;">No data</td></tr>'; } return; }
+            const totals = {}; preds.forEach(p => { if (!totals[p.user_name]) totals[p.user_name] = 0; totals[p.user_name] += (parseInt(p.points_won) || 0); });
+            for (const [userName, pts] of Object.entries(totals)) { await supabaseClient.from('leaderboard').update({ total_points: pts }).eq('user_name', userName); }
+            const sorted = Object.entries(totals).map(([user_name, total_points]) => ({ user_name, total_points })).sort((a, b) => b.total_points - a.total_points);
+            if (table) {
+                table.innerHTML = '<tr><th>Pos</th><th>User</th><th class="num">Pts</th></tr>';
+                sorted.forEach((user, index) => {
+                    const isMe = user.user_name === currentUser;
+                    table.innerHTML += `<tr class="${isMe ? 'highlight-row' : ''}"><td class="rank">${index + 1}</td><td>${user.user_name}</td><td class="num">${user.total_points}</td></tr>`;
+                    if (isMe) { document.getElementById('prof-points').innerText = user.total_points; document.getElementById('prof-rank').innerText = `Rank ${index + 1}`; }
+                });
             }
         }
-    } catch (err) { console.error("Fixture Error:", err); }
-    finally {
-        setHomeFixtureSkeletons(false);
-    }
-}
 
-async function fetchAllFixtures() {
-    try {
-        const { data, error } = await supabaseClient.from('fixtures').select('*').order('id', { ascending: true });
-        if (error) throw error;
-        const histCont = document.getElementById('list-history');
-        const lastCont = document.getElementById('list-last-match');
-        const upcoCont = document.getElementById('list-upcoming');
-        histCont.innerHTML = ''; lastCont.innerHTML = ''; upcoCont.innerHTML = '';
-
-        const finished = data.filter(f => f.status === 'finished');
-        const upcoming = data.filter(f => f.status === 'upcoming');
-
-        if (finished.length > 0) {
-            const last = finished[finished.length - 1];
-            lastCont.innerHTML = `<div class="card row-flex" onclick="openMatchCentre('${last.custom_id}', '${last.sofascore_id}', '${last.stats_url || ''}', '${last.highlights_url || ''}')">
-                <div><div class="fix-date">${last.match_date}</div><div class="fix-teams">${last.home_team} ${last.home_score} - ${last.away_score} ${last.away_team}</div></div>
-                <div style="font-weight: 800; color: var(--red);">➔</div></div>`;
-            
-            finished.slice(0, -1).forEach(f => {
-                histCont.innerHTML += `<div class="card row-flex" style="border-left: 4px solid #8e8e93; opacity: 0.8; margin-bottom: 8px; padding: 12px 20px;" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')">
-                    <div><div class="fix-date" style="font-size: 10px;">${f.match_date}</div><div class="fix-teams" style="font-size: 14px;">${f.home_team} ${f.home_score}-${f.away_score} ${f.away_team}</div></div>
-                    <div style="font-weight: 800; color: var(--red);">➔</div></div>`;
+        async function fetchSquad() {
+            const { data: players } = await supabaseClient.from('squad').select('*').order('name', { ascending: true }); if (!players) return;
+            window._squadPlayers = players.filter(p => p.position !== 'GK'); const dropdown = document.getElementById('input-scorer');
+            dropdown.innerHTML = '<option value="" disabled selected>Choose scorer</option>';
+            players.filter(p => p.position !== 'GK').forEach(p => { const opt = document.createElement('option'); opt.value = p.name; opt.innerText = `${p.number || '0'}. ${p.name}`; dropdown.appendChild(opt); });
+            const containers = { 'GK': 'squad-gk', 'DF': 'squad-df', 'MF': 'squad-mf', 'FW': 'squad-fw' };
+            Object.values(containers).forEach(id => document.getElementById(id).innerHTML = '');
+            players.forEach(p => {
+                const posMap = { GK: 'pos-gk', DF: 'pos-df', MF: 'pos-mf', FW: 'pos-fw' }; const posLabel = { GK: 'GK', DF: 'DEF', MF: 'MID', FW: 'FWD' }; const isGK = p.position === 'GK';
+                let ageStr = ''; let dobStr = ''; if (p.dob) { const dob = new Date(p.dob); const today = new Date(); let age = today.getFullYear() - dob.getFullYear(); const m = today.getMonth() - dob.getMonth(); if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--; ageStr = `${age}`; dobStr = dob.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); }
+                const div = document.createElement('div'); div.className = 'squad-card';
+                div.innerHTML = `<div class="squad-avatar ${isGK ? 'gk-avatar' : ''}">${p.number || '—'}</div><div class="squad-info"><div class="squad-name">${p.name}</div><span class="squad-pos-badge ${posMap[p.position] || 'pos-fw'}">${posLabel[p.position] || p.position}</span><div style="margin-top:5px; display:flex; flex-direction:column; gap:2px;">${p.nationality ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">${p.nationality}</div>` : ''}${dobStr ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">Born ${dobStr}${ageStr ? ` (Age ${ageStr})` : ''}</div>` : ''}</div></div>${p.stats_url ? `<button class="squad-stats-btn" onclick="window.open('${p.stats_url}','_blank'); event.stopPropagation();">Stats</button>` : ''}`;
+                document.getElementById(containers[p.position]).appendChild(div);
             });
         }
-        upcoming.forEach(f => {
-            upcoCont.innerHTML += `<div class="card row-flex" style="border-left: 4px solid var(--red)" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')">
-                <div><div class="fix-date">${f.match_date} • ${f.kickoff_time}</div><div class="fix-teams">${f.home_team} vs ${f.away_team}</div><div class="fix-sub">${f.competition} • ${f.stadium}</div></div>
-                <div style="font-weight: 800; color: var(--red);">➔</div></div>`;
-        });
-    } catch (err) { console.error("Fixtures List Error:", err); }
-}
 
-async function refreshUsers() {
-    // Force the name to update immediately from your variable
-    const nameDisplay = document.getElementById('prof-name');
-    if (nameDisplay) nameDisplay.innerText = currentUser;
+        function toggleHistory() { const section = document.getElementById('history-section'); const btn = document.getElementById('btn-toggle-history'); if (section.style.display === 'none') { section.style.display = 'block'; btn.innerText = '- Hide Previous Results'; } else { section.style.display = 'none'; btn.innerText = '+ View Previous Results'; } }
 
-    setLeaderboardSkeleton(true);
-    // Calculate totals directly from predictions table
-    const { data: preds } = await supabaseClient
-        .from('predictions')
-        .select('user_name, points_won');
-
-    const table = document.getElementById('leaderboard-table');
-    if (!preds) {
-        if (table) {
-            table.innerHTML = '<tr><th>Pos</th><th>User</th><th class="num">Pts</th></tr>' +
-                '<tr><td colspan="3" style="text-align:center;padding:16px;color:#888;">No data</td></tr>';
-        }
-        return;
-    }
-
-    // Sum points per user
-    const totals = {};
-    preds.forEach(p => {
-        if (!totals[p.user_name]) totals[p.user_name] = 0;
-        totals[p.user_name] += (parseInt(p.points_won) || 0);
-    });
-
-    // Write updated totals back to leaderboard table
-    for (const [userName, pts] of Object.entries(totals)) {
-        await supabaseClient
-            .from('leaderboard')
-            .update({ total_points: pts })
-            .eq('user_name', userName);
-    }
-
-    // Sort for display
-    const sorted = Object.entries(totals)
-        .map(([user_name, total_points]) => ({ user_name, total_points }))
-        .sort((a, b) => b.total_points - a.total_points);
-
-    if (table) {
-        table.innerHTML = '<tr><th>Pos</th><th>User</th><th class="num">Pts</th></tr>';
-        sorted.forEach((user, index) => {
-            const isMe = user.user_name === currentUser;
-            table.innerHTML += `<tr class="${isMe ? 'highlight-row' : ''}">
-                <td class="rank">${index + 1}</td>
-                <td>${user.user_name}</td>
-                <td class="num">${user.total_points}</td>
-            </tr>`;
-            if (isMe) {
-                document.getElementById('prof-points').innerText = user.total_points;
-                document.getElementById('prof-rank').innerText = `Rank ${index + 1}`;
-            }
-        });
-    }
-}
-
-async function fetchSquad() {
-    const { data: players } = await supabaseClient.from('squad').select('*').order('name', { ascending: true });
-    if (!players) return;
-    window._squadPlayers = players.filter(p => p.position !== 'GK'); // store for admin scorer dropdown
-    const dropdown = document.getElementById('input-scorer');
-    // Prediction form: placeholder + outfield players only (no "None"; admin keeps None for real 0-0 etc.)
-    dropdown.innerHTML = '<option value="" disabled selected>Choose scorer</option>';
-    players.filter(p => p.position !== 'GK').forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p.name; opt.innerText = `${p.number || '0'}. ${p.name}`;
-        dropdown.appendChild(opt);
-    });
-    const containers = { 'GK': 'squad-gk', 'DF': 'squad-df', 'MF': 'squad-mf', 'FW': 'squad-fw' };
-    Object.values(containers).forEach(id => document.getElementById(id).innerHTML = '');
-    players.forEach(p => {
-        const posMap = { GK: 'pos-gk', DF: 'pos-df', MF: 'pos-mf', FW: 'pos-fw' };
-        const posLabel = { GK: 'GK', DF: 'DEF', MF: 'MID', FW: 'FWD' };
-        const isGK = p.position === 'GK';
-
-        // Calculate age and format DOB
-        let ageStr = '';
-        let dobStr = '';
-        if (p.dob) {
-            const dob = new Date(p.dob);
-            const today = new Date();
-            let age = today.getFullYear() - dob.getFullYear();
-            const m = today.getMonth() - dob.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
-            ageStr = `${age}`;
-            dobStr = dob.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+        function openPredictionModal() {
+            try {
+                const modal = document.getElementById('predModal'); const titleEl = document.getElementById('modal-match-title'); const homeInput = document.getElementById('input-home'); const awayInput = document.getElementById('input-away');
+                let teamText = currentMatchLabel || ''; if (!teamText) { const homeTeamsEl = document.getElementById('home-fix-teams'); if (homeTeamsEl && homeTeamsEl.innerText.includes('vs')) { teamText = homeTeamsEl.innerText; } }
+                teamText = teamText || 'Next Match'; if (titleEl) titleEl.textContent = teamText;
+                const teams = teamText.split(' vs '); if (homeInput) homeInput.placeholder = (teams[0] || 'HOM').substring(0, 3).toUpperCase(); if (awayInput) awayInput.placeholder = (teams[1] || 'AWY').substring(0, 3).toUpperCase();
+                if (currentPrediction) {
+                    if (homeInput) homeInput.value = currentPrediction.pred_home ?? ''; if (awayInput) awayInput.value = currentPrediction.pred_away ?? '';
+                    const scorerDropdown = document.getElementById('input-scorer');
+                    if (scorerDropdown && scorerDropdown.options.length) {
+                        const raw = currentPrediction.pred_scorer; const invalid = !raw || String(raw).toLowerCase() === 'none'; let matched = false;
+                        Array.from(scorerDropdown.options).forEach(opt => { const sel = !invalid && opt.value === raw; opt.selected = sel; if (sel) matched = true; });
+                        if (!matched) { const ph = scorerDropdown.querySelector('option[value=""]'); if (ph) ph.selected = true; }
+                    }
+                } else { if (homeInput) homeInput.value = ''; if (awayInput) awayInput.value = ''; const scorerDropdown = document.getElementById('input-scorer'); if (scorerDropdown) { const ph = scorerDropdown.querySelector('option[value=""]'); if (ph) ph.selected = true; } }
+                if (modal) { modal.style.display = 'flex'; modal.classList.add('active'); }
+            } catch (error) { console.error("Modal Opening Error:", error); const modal = document.getElementById('predModal'); if (modal) { modal.style.display = 'flex'; modal.classList.add('active'); } }
         }
 
-        const div = document.createElement('div');
-        div.className = 'squad-card';
-        div.innerHTML = `
-            <div class="squad-avatar ${isGK ? 'gk-avatar' : ''}">
-                ${p.number || '—'}
-            </div>
-            <div class="squad-info">
-                <div class="squad-name">${p.name}</div>
-                <span class="squad-pos-badge ${posMap[p.position] || 'pos-fw'}">${posLabel[p.position] || p.position}</span>
-                <div style="margin-top:5px; display:flex; flex-direction:column; gap:2px;">
-                    ${p.nationality ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">${p.nationality}</div>` : ''}
-                    ${dobStr ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">Born ${dobStr}${ageStr ? ` (Age ${ageStr})` : ''}</div>` : ''}
-                </div>
-            </div>
-            ${p.stats_url ? `<button class="squad-stats-btn" onclick="window.open('${p.stats_url}','_blank'); event.stopPropagation();">Stats</button>` : ''}
-        `;
-        document.getElementById(containers[p.position]).appendChild(div);
-    });
-}
-
-function toggleHistory() {
-    const section = document.getElementById('history-section');
-    const btn = document.getElementById('btn-toggle-history');
-    
-    // Check if the section is currently hidden
-    if (section.style.display === 'none') {
-        section.style.display = 'block';
-        btn.innerText = '- Hide Previous Results'; // Change text when open
-    } else {
-        section.style.display = 'none';
-        btn.innerText = '+ View Previous Results'; // Change text when closed
-    }
-}
-// 1. FIXED: Open Modal with Dynamic Team Names
-function openPredictionModal() {
-    try {
-        const modal = document.getElementById('predModal');
-        const titleEl = document.getElementById('modal-match-title');
-        const homeInput = document.getElementById('input-home');
-        const awayInput = document.getElementById('input-away');
-
-        // Use stored label (set when fixture loads) or fall back to DOM
-        let teamText = currentMatchLabel || '';
-        if (!teamText) {
-            const homeTeamsEl = document.getElementById('home-fix-teams');
-            if (homeTeamsEl && homeTeamsEl.innerText.includes('vs')) {
-                teamText = homeTeamsEl.innerText;
-            }
-        }
-        teamText = teamText || 'Next Match';
-
-        // Update modal title
-        if (titleEl) titleEl.textContent = teamText;
-
-        // Update score input placeholders
-        const teams = teamText.split(' vs ');
-        if (homeInput) homeInput.placeholder = (teams[0] || 'HOM').substring(0, 3).toUpperCase();
-        if (awayInput) awayInput.placeholder = (teams[1] || 'AWY').substring(0, 3).toUpperCase();
-
-        // Pre-fill if editing existing prediction
-        if (currentPrediction) {
-            if (homeInput) homeInput.value = currentPrediction.pred_home ?? '';
-            if (awayInput) awayInput.value = currentPrediction.pred_away ?? '';
-            const scorerDropdown = document.getElementById('input-scorer');
-            if (scorerDropdown && scorerDropdown.options.length) {
-                const raw = currentPrediction.pred_scorer;
-                const invalid = !raw || String(raw).toLowerCase() === 'none';
-                let matched = false;
-                Array.from(scorerDropdown.options).forEach(opt => {
-                    const sel = !invalid && opt.value === raw;
-                    opt.selected = sel;
-                    if (sel) matched = true;
-                });
-                if (!matched) {
-                    const ph = scorerDropdown.querySelector('option[value=""]');
-                    if (ph) ph.selected = true;
-                }
-            }
-        } else {
-            if (homeInput) homeInput.value = '';
-            if (awayInput) awayInput.value = '';
-            const scorerDropdown = document.getElementById('input-scorer');
-            if (scorerDropdown) {
-                const ph = scorerDropdown.querySelector('option[value=""]');
-                if (ph) ph.selected = true;
+        async function closePredictionModal(saved) {
+            const modal = document.getElementById('predModal'); if (!modal) return;
+            modal.classList.remove('active'); setTimeout(() => { modal.style.display = 'none'; }, 300);
+            if (saved) {
+                const hScore = document.getElementById('input-home').value; const aScore = document.getElementById('input-away').value; const scorer = document.getElementById('input-scorer').value;
+                if (hScore === "" || aScore === "" || !scorer) { alert("Please fill in all fields before saving."); modal.classList.add('active'); modal.style.display = 'flex'; return; }
+                try {
+                    const { error } = await supabaseClient.from('predictions').upsert([{ user_name: currentUser, match_id: currentMatchId.toString(), pred_home: parseInt(hScore), pred_away: parseInt(aScore), pred_scorer: scorer }], { onConflict: 'user_name,match_id' });
+                    if (error) throw error; showToast("Prediction Saved! ✓"); hapticSuccess(); checkExistingPrediction();
+                } catch (err) { console.error('Save Error:', err.message); alert("Error saving to database: " + err.message); }
             }
         }
 
-        if (modal) {
-            modal.style.display = 'flex';
-            modal.classList.add('active');
-        }
-    } catch (error) {
-        console.error("Modal Opening Error:", error);
-        const modal = document.getElementById('predModal');
-        if (modal) { modal.style.display = 'flex'; modal.classList.add('active'); }
-    }
-}
-
-// 2. RESTORED: The Missing Close/Save Function
-async function closePredictionModal(saved) {
-    const modal = document.getElementById('predModal');
-    if (!modal) return;
-
-    // Hide the modal immediately for better UX
-    modal.classList.remove('active');
-    setTimeout(() => { modal.style.display = 'none'; }, 300);
-    
-    if (saved) {
-        const hScore = document.getElementById('input-home').value;
-        const aScore = document.getElementById('input-away').value;
-        const scorer = document.getElementById('input-scorer').value;
-
-        if (hScore === "" || aScore === "" || !scorer) {
-            alert("Please fill in all fields before saving.");
-            modal.classList.add('active'); // Re-open if validation fails
-            modal.style.display = 'flex';
-            return;
+        async function checkExistingPrediction() {
+            if (!currentMatchId) return;
+            const { data: prediction } = await supabaseClient.from('predictions').select('*').eq('user_name', currentUser).eq('match_id', currentMatchId.toString()).maybeSingle();
+            const btn = document.getElementById('btn-home-predict'); const preview = document.getElementById('prediction-preview');
+            if (prediction) { currentPrediction = prediction; btn.innerText = "Edit Prediction"; btn.style.background = "#1c1c1e"; preview.style.display = 'block'; document.getElementById('preview-score-text').innerText = `${prediction.pred_home} - ${prediction.pred_away}`; document.getElementById('preview-scorer-text').innerText = `Scorer: ${prediction.pred_scorer}`; } else { currentPrediction = null; btn.innerText = "Make Prediction"; btn.style.background = "var(--red)"; preview.style.display = 'none'; }
+            const fixtureSubEl = document.getElementById('home-fix-sub'); const fixtureDateEl = document.getElementById('home-fix-date');
+            if (fixtureSubEl && fixtureDateEl) { const subText = fixtureSubEl.innerText; const dateText = fixtureDateEl.innerText.replace('Next Fixture • ', ''); const kickoffTime = subText.includes('•') ? subText.split('•').pop().trim() : ''; if (kickoffTime && dateText) { const ko = parseKickoffDate(dateText, kickoffTime); updatePredictionLockState(ko); } }
         }
 
-        try {
-            const { error } = await supabaseClient
-                .from('predictions')
-                .upsert([{ 
-                    user_name: currentUser, 
-                    match_id: currentMatchId.toString(), 
-                    pred_home: parseInt(hScore), 
-                    pred_away: parseInt(aScore), 
-                    pred_scorer: scorer 
-                }], { 
-                    onConflict: 'user_name,match_id' 
-                });
+        function showToast(msg) { const toast = document.getElementById("toast"); toast.innerText = msg; toast.className = "show"; setTimeout(() => { toast.className = ""; }, 2000); }
+        function hapticSuccess() { try { if (navigator.vibrate) navigator.vibrate([10, 35, 14]); } catch (e) {} }
+        function setHomeFixtureSkeletons(on) { document.getElementById('next-match-card')?.classList.toggle('fixture-card-skeleton', !!on); document.getElementById('last-match-card')?.classList.toggle('fixture-card-skeleton', !!on); }
+        function setLeaderboardSkeleton(on) { const table = document.getElementById('leaderboard-table'); if (!table || !on) return; const rowSk = '<tr class="lb-sk-row"><td colspan="3"><div class="lb-sk-bar"></div><div class="lb-sk-bar short"></div><div class="lb-sk-bar tiny"></div></td></tr>'; table.innerHTML = '<tr><th>Pos</th><th>User</th><th class="num">Pts</th></tr>' + rowSk + rowSk + rowSk; }
 
-            if (error) throw error;
-            
-            showToast("Prediction Saved! ✓");
-            hapticSuccess();
-            checkExistingPrediction(); // Refresh the preview on the home screen
-
-        } catch (err) {
-            console.error('Save Error:', err.message);
-            alert("Error saving to database: " + err.message);
+        let _ptrRefreshBusy = false; let _ptrStartY = 0; let _ptrPull = 0; let _ptrTracking = false;
+        function setPtrVisual(mode, pullPx) {
+            const el = document.getElementById('ptr-indicator'); if (!el) return; const threshold = 72;
+            if (mode === 'hide') { el.classList.remove('ptr-visible', 'ptr-ready'); el.textContent = ''; return; }
+            if (mode === 'pull') { const p = pullPx || 0; if (p < 12) { el.classList.remove('ptr-visible', 'ptr-ready'); el.textContent = ''; return; } el.textContent = p >= threshold ? 'Release to refresh' : 'Pull to refresh'; el.classList.add('ptr-visible'); el.classList.toggle('ptr-ready', p >= threshold); return; }
+            if (mode === 'loading') { el.textContent = 'Refreshing…'; el.classList.add('ptr-visible', 'ptr-ready'); }
         }
-    }
-}
+        function ptrModalBlocking() { const m = document.getElementById('predModal'); return m && m.classList.contains('active'); }
+        function isHomeScreenVisible() { const h = document.getElementById('screen-home'); if (!h) return false; return window.getComputedStyle(h).display !== 'none'; }
 
-// Function to check if you've already predicted for the current match
-async function checkExistingPrediction() {
-    if (!currentMatchId) return;
-
-    const { data: prediction } = await supabaseClient
-        .from('predictions')
-        .select('*')
-        .eq('user_name', currentUser)
-        .eq('match_id', currentMatchId.toString())
-        .maybeSingle();
-
-    const btn = document.getElementById('btn-home-predict');
-    const preview = document.getElementById('prediction-preview');
-
-    if (prediction) {
-        currentPrediction = prediction; // store for modal pre-fill
-        btn.innerText = "Edit Prediction";
-        btn.style.background = "#1c1c1e";
-        preview.style.display = 'block';
-        document.getElementById('preview-score-text').innerText = `${prediction.pred_home} - ${prediction.pred_away}`;
-        document.getElementById('preview-scorer-text').innerText = `Scorer: ${prediction.pred_scorer}`;
-    } else {
-        currentPrediction = null;
-        btn.innerText = "Make Prediction";
-        btn.style.background = "var(--red)";
-        preview.style.display = 'none';
-    }
-
-    // Re-apply lock state in case deadline has passed
-    // Fetch kickoff from current next fixture data
-    const fixtureSubEl = document.getElementById('home-fix-sub');
-    const fixtureDateEl = document.getElementById('home-fix-date');
-    if (fixtureSubEl && fixtureDateEl) {
-        const subText = fixtureSubEl.innerText; // e.g. "Old Trafford • 15:00 BST"
-        const dateText = fixtureDateEl.innerText.replace('Next Fixture • ', '');
-        const kickoffTime = subText.includes('•') ? subText.split('•').pop().trim() : '';
-        if (kickoffTime && dateText) {
-            const ko = parseKickoffDate(dateText, kickoffTime);
-            updatePredictionLockState(ko);
+        async function refreshAppData() {
+            if (!currentUser || _ptrRefreshBusy) return; _ptrRefreshBusy = true;
+            try { await fetchNextFixture(); await Promise.all([checkExistingPrediction(), refreshUsers(), fetchSquad(), fetchAllFixtures(), loadHistorySeasons()]); } catch (err) { console.error('Refresh:', err); showToast('Refresh failed'); } finally { _ptrRefreshBusy = false; }
         }
-    }
-}
 
-// Helper for the "Saved!" pop-up
-function showToast(msg) {
-    const toast = document.getElementById("toast");
-    toast.innerText = msg;
-    toast.className = "show";
-    setTimeout(() => { toast.className = ""; }, 2000);
-}
+        (function setupPullToRefresh() {
+            document.addEventListener('touchstart', (e) => { if (!currentUser || ptrModalBlocking()) return; if (!isHomeScreenVisible()) return; if (window.scrollY > 12) return; _ptrTracking = true; _ptrStartY = e.touches[0].clientY; _ptrPull = 0; }, { passive: true });
+            document.addEventListener('touchmove', (e) => { if (!_ptrTracking || ptrModalBlocking()) return; if (!isHomeScreenVisible() || window.scrollY > 12) { _ptrTracking = false; setPtrVisual('hide'); return; } const y = e.touches[0].clientY; _ptrPull = Math.max(0, y - _ptrStartY); if (_ptrPull > 0) setPtrVisual('pull', _ptrPull); }, { passive: true });
+            document.addEventListener('touchend', () => { if (!_ptrTracking) return; _ptrTracking = false; const threshold = 72; if (_ptrPull >= threshold && isHomeScreenVisible() && currentUser && !_ptrRefreshBusy) { setPtrVisual('loading'); refreshAppData().finally(() => setPtrVisual('hide')); } else { setPtrVisual('hide'); } _ptrPull = 0; });
+        })();
 
-function hapticSuccess() {
-    try {
-        if (navigator.vibrate) navigator.vibrate([10, 35, 14]);
-    } catch (e) {}
-}
+        function adminSwitchUser(newUser) { if (!newUser) return; currentUser = newUser; try { localStorage.setItem('mufc_user', newUser); } catch(e) {} location.reload(); }
 
-function setHomeFixtureSkeletons(on) {
-    document.getElementById('next-match-card')?.classList.toggle('fixture-card-skeleton', !!on);
-    document.getElementById('last-match-card')?.classList.toggle('fixture-card-skeleton', !!on);
-}
-
-function setLeaderboardSkeleton(on) {
-    const table = document.getElementById('leaderboard-table');
-    if (!table || !on) return;
-    const rowSk = '<tr class="lb-sk-row"><td colspan="3"><div class="lb-sk-bar"></div><div class="lb-sk-bar short"></div><div class="lb-sk-bar tiny"></div></td></tr>';
-    table.innerHTML = '<tr><th>Pos</th><th>User</th><th class="num">Pts</th></tr>' + rowSk + rowSk + rowSk;
-}
-
-let _ptrRefreshBusy = false;
-let _ptrStartY = 0;
-let _ptrPull = 0;
-let _ptrTracking = false;
-
-function setPtrVisual(mode, pullPx) {
-    const el = document.getElementById('ptr-indicator');
-    if (!el) return;
-    const threshold = 72;
-    if (mode === 'hide') {
-        el.classList.remove('ptr-visible', 'ptr-ready');
-        el.textContent = '';
-        return;
-    }
-    if (mode === 'pull') {
-        const p = pullPx || 0;
-        if (p < 12) {
-            el.classList.remove('ptr-visible', 'ptr-ready');
-            el.textContent = '';
-            return;
+        async function fetchLiveMufcNews() {
+            const marquee = document.getElementById('native-ticker-marquee'); if (!marquee) return;
+            const rssUrl = "https://newsrss.bbc.co.uk/rss/sportonline_world_edition/football/teams/m/man_utd/rss.xml";
+            try {
+                const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`); if (!response.ok) throw new Error('Primary failed');
+                const data = await response.json(); const titles = []; const regex = /<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>(.*?)<\/title>/g; let match;
+                while ((match = regex.exec(data.contents)) !== null) { const headline = match[1] || match[2]; if (headline && !headline.includes("BBC Sport") && !headline.includes("Manchester United - BBC Sport")) { titles.push(headline.toUpperCase().trim()); } }
+                if (titles.length === 0) { throw new Error('Empty text'); }
+                let htmlStream = ""; titles.slice(0, 7).forEach((t, i) => { htmlStream += `<a href="https://www.bbc.co.uk/sport/football/teams/manchester-united" target="_blank" style="color:#fff; text-decoration:none;">${t}</a> ••• `; });
+                marquee.innerHTML = htmlStream;
+            } catch (error) {
+                try {
+                    const backupResponse = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`); const backupData = await backupResponse.json();
+                    if (backupData && backupData.items && backupData.items.length > 0) {
+                        let backupHtml = ""; backupData.items.forEach(item => { backupHtml += `<a href="${item.link}" target="_blank" rel="noopener noreferrer" style="color:#fff; text-decoration:none;">${item.title.trim().toUpperCase()}</a> ••• `; });
+                        marquee.innerHTML = backupHtml; return;
+                    }
+                } catch (backupError) { console.error("All streams locked out", backupError); }
+                marquee.innerHTML = "LATEST MANCHESTER UNITED TRANSFERS & TEAM NEWS INCOMING • STATUS: LIVE •";
+            }
         }
-        el.textContent = p >= threshold ? 'Release to refresh' : 'Pull to refresh';
-        el.classList.add('ptr-visible');
-        el.classList.toggle('ptr-ready', p >= threshold);
-        return;
-    }
-    if (mode === 'loading') {
-        el.textContent = 'Refreshing…';
-        el.classList.add('ptr-visible', 'ptr-ready');
-    }
-}
 
-function ptrModalBlocking() {
-    const m = document.getElementById('predModal');
-    return m && m.classList.contains('active');
-}
+        window.addEventListener('load', () => { setTimeout(fetchLiveMufcNews, 1000); });
 
-function isHomeScreenVisible() {
-    const h = document.getElementById('screen-home');
-    if (!h) return false;
-    return window.getComputedStyle(h).display !== 'none';
-}
-
-async function refreshAppData() {
-    if (!currentUser || _ptrRefreshBusy) return;
-    _ptrRefreshBusy = true;
-    try {
-        await fetchNextFixture();
-        await Promise.all([
-            checkExistingPrediction(),
-            refreshUsers(),
-            fetchSquad(),
-            fetchAllFixtures(),
-            loadHistorySeasons()
-        ]);
-    } catch (err) {
-        console.error('Refresh:', err);
-        showToast('Refresh failed');
-    } finally {
-        _ptrRefreshBusy = false;
-    }
-}
-
-(function setupPullToRefresh() {
-    document.addEventListener('touchstart', (e) => {
-        if (!currentUser || ptrModalBlocking()) return;
-        if (!isHomeScreenVisible()) return;
-        if (window.scrollY > 12) return;
-        _ptrTracking = true;
-        _ptrStartY = e.touches[0].clientY;
-        _ptrPull = 0;
-    }, { passive: true });
-
-    document.addEventListener('touchmove', (e) => {
-        if (!_ptrTracking || ptrModalBlocking()) return;
-        if (!isHomeScreenVisible()) {
-            _ptrTracking = false;
-            setPtrVisual('hide');
-            return;
+        async function initApp() {
+            const loginScreen = document.getElementById('screen-login'); const homeScreen = document.getElementById('screen-home');
+            if (!currentUser) { if (loginScreen) { loginScreen.style.display = 'flex'; loginScreen.classList.add('active'); } if (homeScreen) homeScreen.style.display = 'none'; } else {
+                if (loginScreen) { loginScreen.style.display = 'none'; loginScreen.classList.remove('active'); } if (homeScreen) homeScreen.style.display = 'block';
+                lastActiveScreenId = 'screen-home'; const profileCard = document.querySelector('#screen-home .profile-card'); if (profileCard) profileCard.classList.add('profile-reveal');
+                await fetchNextFixture(); await checkExistingPrediction(); refreshUsers(); fetchSquad(); fetchAllFixtures(); loadHistorySeasons(); initMattCrestAdmin();
+            }
         }
-        if (window.scrollY > 12) {
-            _ptrTracking = false;
-            setPtrVisual('hide');
-            return;
+
+        function handleLogin() { const selectedUser = document.getElementById('login-username').value; if (selectedUser) { currentUser = selectedUser; try { localStorage.setItem('mufc_user', selectedUser); } catch(e) {} initApp(); } }
+        function adminToggle(panelId) { const panel = document.getElementById(panelId); const chevron = document.getElementById(panelId + '-chevron'); if (!panel) return; const isOpen = panel.classList.contains('open'); panel.classList.toggle('open', !isOpen); if (chevron) chevron.classList.toggle('open', !isOpen); }
+        function enableAdmin() { masterAdminOverride = true; showToast("Admin Mode Unlocked"); }
+
+        async function adminLoadFixtures() {
+            const { data, error } = await supabaseClient.from('fixtures').select('id, custom_id, home_team, away_team, match_date, home_score, away_score, actual_scorer, status, stats_image, score_image').order('id', { ascending: true }); if (error || !data) return;
+            const sel = document.getElementById('admin-fixture-select'); if (!sel) return; sel.innerHTML = '<option value="">-- Select Fixture --</option>';
+            data.forEach(f => { const score = (f.home_score !== null && f.away_score !== null) ? ` (${f.home_score}-${f.away_score})` : ''; const opt = document.createElement('option'); opt.value = f.custom_id; opt.textContent = `${f.match_date} | ${f.home_team} vs ${f.away_team}${score}`; sel.appendChild(opt); });
+            window._adminFixtures = data;
         }
-        const y = e.touches[0].clientY;
-        _ptrPull = Math.max(0, y - _ptrStartY);
-        if (_ptrPull > 0) setPtrVisual('pull', _ptrPull);
-    }, { passive: true });
 
-    document.addEventListener('touchend', () => {
-        if (!_ptrTracking) return;
-        _ptrTracking = false;
-        const threshold = 72;
-        if (_ptrPull >= threshold && isHomeScreenVisible() && currentUser && !_ptrRefreshBusy) {
-            setPtrVisual('loading');
-            refreshAppData().finally(() => setPtrVisual('hide'));
-        } else {
-            setPtrVisual('hide');
+        function adminLoadFixture(customId) {
+            const form = document.getElementById('admin-result-form'); if (!customId) { form.style.display = 'none'; return; }
+            const f = (window._adminFixtures || []).find(x => x.custom_id === customId); if (!f) return;
+            form.style.display = 'block'; const statsCard = document.getElementById('admin-stats-card'); if (statsCard) statsCard.style.display = 'block';
+            const scoreImgCard = document.getElementById('admin-score-image-card'); if (scoreImgCard) scoreImgCard.style.display = 'block';
+            if (f.score_image) { document.getElementById('admin-score-img').src = f.score_image; document.getElementById('admin-score-image-preview').style.display = 'block'; } else { document.getElementById('admin-score-img').src = ''; document.getElementById('admin-score-image-preview').style.display = 'none'; }
+            if (f.stats_image) { document.getElementById('admin-stats-img').src = f.stats_image; document.getElementById('admin-stats-preview').style.display = 'block'; } else { document.getElementById('admin-stats-img').src = ''; document.getElementById('admin-stats-preview').style.display = 'none'; }
         }
-        _ptrPull = 0;
-    });
-})();
 
-/**
- * Updates the saved user in the browser and reloads the application[cite: 1].
- */
-function adminSwitchUser(newUser) {
-    if (!newUser) return;
-    currentUser = newUser;
-    try { localStorage.setItem('mufc_user', newUser); } catch(e) {}
-    location.reload();
-}
-
-// Native news engine that connects securely to the BBC live wire with interactive links
-async function fetchLiveMufcNews() {
-    const marquee = document.getElementById('native-ticker-marquee');
-    if (!marquee) return;
-    
-    try {
-        const rssUrl = "https://newsrss.bbc.co.uk/rss/sportonline_world_edition/football/teams/m/man_utd/rss.xml";
-        // Clean JSON data utility framework
-        const response = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`);
-        
-        if (!response.ok) throw new Error('Fetch failed');
-        const data = await response.json();
-        
-        if (data && data.items && data.items.length > 0) {
-            let tickerHtmlStream = "";
-            
-            // Loop through articles and wrap each headline in a clean clickable anchor link
-            data.items.slice(0, 8).forEach(item => {
-                const headline = item.title.trim().toUpperCase();
-                const articleUrl = item.link;
-                
-                // Add explicit styling to ensure links remain bright white and aren't styled by regular browser purple overrides
-                tickerHtmlStream += `<a href="${articleUrl}" target="_blank" rel="noopener noreferrer" style="color: #ffffff; text-decoration: none; cursor: pointer;">${headline}</a> ••• `;
-            });
-            
-            marquee.innerHTML = tickerHtmlStream;
-        } else {
-            marquee.innerHTML = "GLORY GLORY MAN UNITED • WELCOME BACK TO THE MATCH CENTRE • ";
+        async function adminSaveResult() {
+            const customId = document.getElementById('admin-fixture-select').value; if (!customId) { showToast('Please select a fixture first.'); return; }
+            const homeScore = document.getElementById('admin-home-score').value; const awayScore = document.getElementById('admin-away-score').value; const scorer = document.getElementById('admin-scorer-select').value; const status = document.getElementById('admin-status-select').value;
+            if (homeScore === '' || awayScore === '') { showToast('Please enter a score before saving.'); return; }
+            const { error } = await supabaseClient.from('fixtures').update({ home_score: parseInt(homeScore), away_score: parseInt(awayScore), actual_scorer: scorer || null, status: status }).eq('custom_id', customId);
+            if (error) { showToast('Error saving result.'); console.error(error); } else { showToast('Result saved! ✓'); hapticSuccess(); adminLoadFixtures(); }
         }
-    } catch (error) {
-        console.error("News stream error:", error);
-        marquee.innerHTML = "LATEST MANCHESTER UNITED NEWS WIRE ONLINE • MATCHDAY INSIDER LIVE • ";
-    }
-}
 
-// Automatically push the stream to load alongside your other app assets on launch
-window.addEventListener('load', () => {
-    setTimeout(fetchLiveMufcNews, 1000);
-});
-
-// --- APP INITIALIZATION ---
-
-// This function checks if a user is logged in. If not, it shows the login screen.
-async function initApp() {
-    const loginScreen = document.getElementById('screen-login');
-    const homeScreen = document.getElementById('screen-home');
-
-    if (!currentUser) {
-        // No user found, force the login screen
-        if (loginScreen) {
-            loginScreen.style.display = 'flex';
-            loginScreen.classList.add('active');
+        function loadMatchStats(fixture) {
+            const container = document.getElementById('stats-container'); if (!container) return;
+            if (!fixture || fixture.status !== 'finished') { container.innerHTML = `<div style="text-align:center; padding:40px 20px;"><div style="font-size:32px; margin-bottom:12px;">⏳</div><div style="font-weight:800; font-size:15px; margin-bottom:6px;">Stats Not Yet Available</div><div style="color:var(--text-muted); font-size:13px;">Stats will appear here once the match has finished.</div></div>`; return; }
+            if (fixture.stats_image) { container.innerHTML = `<div style="border-radius:16px; overflow:hidden; margin-bottom:8px;"><img src="${fixture.stats_image}" style="width:100%; display:block; border-radius:16px;" onerror="this.parentElement.innerHTML='<div style=\'text-align:center;padding:40px;color:var(--text-muted);\'>Stats image could not be loaded.</div>'" /></div><div style="text-align:center; font-size:10px; color:var(--text-muted); padding:4px 0 12px;">Tap and hold image to save</div>`; } else { container.innerHTML = `<div style="text-align:center; padding:40px 20px;"><div style="font-size:32px; margin-bottom:12px;">📊</div><div style="font-weight:800; font-size:15px; margin-bottom:6px;">No Stats Yet</div><div style="color:var(--text-muted); font-size:13px;">Stats image will appear here once uploaded in the Admin panel.</div></div>`; }
         }
-        if (homeScreen) homeScreen.style.display = 'none';
-        console.log("Waiting for user login...");
-    } else {
-        // User is logged in, hide login and load data
-        if (loginScreen) {
-            loginScreen.style.display = 'none';
-            loginScreen.classList.remove('active');
+
+        function adminPreviewStats(input) { if (!input.files || !input.files[0]) return; const reader = new FileReader(); reader.onload = (e) => { document.getElementById('admin-stats-img').src = e.target.result; document.getElementById('admin-stats-preview').style.display = 'block'; }; reader.readAsDataURL(input.files[0]); }
+
+        async function adminSaveStatsImage() {
+            const customId = document.getElementById('admin-fixture-select').value; if (!customId) { showToast('Please select a fixture first.'); return; }
+            const fileInput = document.getElementById('admin-stats-upload'); if (!fileInput.files || !fileInput.files[0]) { showToast('Please choose an image first.'); return; }
+            const file = fileInput.files[0]; const ext = file.name.split('.').pop(); const filePath = `stats/${customId}_stats.${ext}`;
+            showToast('Uploading...'); const { error: uploadError } = await supabaseClient.storage.from('videos').upload(filePath, file, { upsert: true, contentType: file.type });
+            if (uploadError) { showToast('Upload failed.'); console.error(uploadError); return; }
+            const { data: urlData } = supabaseClient.storage.from('videos').getPublicUrl(filePath);
+            const { error: dbError } = await supabaseClient.from('fixtures').update({ stats_image: urlData.publicUrl }).eq('custom_id', customId);
+            if (dbError) { showToast('Failed to save URL.'); console.error(dbError); } else { showToast('Stats image saved! ✓'); }
         }
-        if (homeScreen) homeScreen.style.display = 'block';
-        lastActiveScreenId = 'screen-home';
-        const profileCard = document.querySelector('#screen-home .profile-card');
-        if (profileCard) profileCard.classList.add('profile-reveal');
-        
-        console.log("Logged in as:", currentUser);
 
-        // Load all data for the current user
-        await fetchNextFixture(); 
-        await checkExistingPrediction();
-        refreshUsers();
-        fetchSquad();
-        fetchAllFixtures();
-        loadHistorySeasons();
-        initMattCrestAdmin();
-    }
-}
-
-// This function handles the "Enter App" button click
-function handleLogin() {
-    const selectedUser = document.getElementById('login-username').value;
-    
-    if (selectedUser) {
-        currentUser = selectedUser;
-        try { localStorage.setItem('mufc_user', selectedUser); } catch(e) {}
-        
-        // Hide login UI
-        const loginScreen = document.getElementById('screen-login');
-        if (loginScreen) {
-            loginScreen.classList.remove('active');
-            loginScreen.style.display = 'none';
+        async function adminLoadSquadForDelete() {
+            const { data } = await supabaseClient.from('squad').select('id, name, position').order('name'); if (!data) return;
+            const sel = document.getElementById('admin-delete-player-select'); if (!sel) return; sel.innerHTML = '<option value="">-- Select Player --</option>';
+            data.forEach(p => { const opt = document.createElement('option'); opt.value = p.id; opt.textContent = `${p.name} (${p.position})`; sel.appendChild(opt); });
         }
-        
-        // Boot up the app data
-        initApp();
-    }
-}
 
-/**
- * Secretly unlocks the Admin tab for testing purposes.
- */
-
-function adminToggle(panelId) {
-    const panel = document.getElementById(panelId);
-    const chevron = document.getElementById(panelId + '-chevron');
-    if (!panel) return;
-    const isOpen = panel.classList.contains('open');
-    panel.classList.toggle('open', !isOpen);
-    if (chevron) chevron.classList.toggle('open', !isOpen);
-}
-
-function enableAdmin() {
-    masterAdminOverride = true;
-    showToast("Admin Mode Unlocked"); // Gives you a subtle confirmation
-}
-
-
-// ── ADMIN: load all fixtures into the dropdown ──────────────────────────────
-async function adminLoadFixtures() {
-    const { data, error } = await supabaseClient
-        .from('fixtures')
-        .select('id, custom_id, home_team, away_team, match_date, home_score, away_score, actual_scorer, status, stats_image, score_image')
-        .order('id', { ascending: true });
-    if (error || !data) return;
-
-    const sel = document.getElementById('admin-fixture-select');
-    if (!sel) return;
-    sel.innerHTML = '<option value="">-- Select Fixture --</option>';
-    data.forEach(f => {
-        const score = (f.home_score !== null && f.away_score !== null)
-            ? ` (${f.home_score}-${f.away_score})` : '';
-        const opt = document.createElement('option');
-        opt.value = f.custom_id;
-        opt.textContent = `${f.match_date} | ${f.home_team} vs ${f.away_team}${score}`;
-        sel.appendChild(opt);
-    });
-
-    // Store fixture data globally for use when loading a specific fixture
-    window._adminFixtures = data;
-}
-
-// ── ADMIN: populate form when a fixture is selected ─────────────────────────
-function adminLoadFixture(customId) {
-    const form = document.getElementById('admin-result-form');
-    if (!customId) { form.style.display = 'none'; return; }
-
-    const f = (window._adminFixtures || []).find(x => x.custom_id === customId);
-    if (!f) return;
-
-    // ... existing code for scores and scorers ...
-
-    form.style.display = 'block';
-
-    // Show stats image card
-    const statsCard = document.getElementById('admin-stats-card');
-    if (statsCard) statsCard.style.display = 'block';
-
-    // ─── ADD THESE LINES BELOW ───
-    const scoreImgCard = document.getElementById('admin-score-image-card');
-    if (scoreImgCard) scoreImgCard.style.display = 'block';
-    
-    // Show existing score image if already uploaded
-    if (f.score_image) {
-        document.getElementById('admin-score-img').src = f.score_image;
-        document.getElementById('admin-score-image-preview').style.display = 'block';
-    } else {
-        document.getElementById('admin-score-img').src = '';
-        document.getElementById('admin-score-image-preview').style.display = 'none';
-    }
-    // ──────────────────────────────
-
-    // Existing logic for stats image preview...
-    if (f.stats_image) {
-        document.getElementById('admin-stats-img').src = f.stats_image;
-        document.getElementById('admin-stats-preview').style.display = 'block';
-    } else {
-        document.getElementById('admin-stats-img').src = '';
-        document.getElementById('admin-stats-preview').style.display = 'none';
-    }
-}
-
-// ── ADMIN: save result back to Supabase ─────────────────────────────────────
-async function adminSaveResult() {
-    const customId = document.getElementById('admin-fixture-select').value;
-    if (!customId) { showToast('Please select a fixture first.'); return; }
-
-    const homeScore = document.getElementById('admin-home-score').value;
-    const awayScore = document.getElementById('admin-away-score').value;
-    const scorer    = document.getElementById('admin-scorer-select').value;
-    const status    = document.getElementById('admin-status-select').value;
-
-    if (homeScore === '' || awayScore === '') {
-        showToast('Please enter a score before saving.');
-        return;
-    }
-
-    const { error } = await supabaseClient
-        .from('fixtures')
-        .update({
-            home_score:    parseInt(homeScore),
-            away_score:    parseInt(awayScore),
-            actual_scorer: scorer || null,
-            status:        status
-        })
-        .eq('custom_id', customId);
-
-    if (error) {
-        showToast('Error saving result. Check console.');
-        console.error(error);
-    } else {
-        showToast('Result saved successfully!');
-        hapticSuccess();
-        adminLoadFixtures(); // Refresh dropdown to show updated score
-    }
-}
-
-
-// ── MATCH STATS - Image Display ─────────────────────────────────────────────
-
-function loadMatchStats(fixture) {
-    const container = document.getElementById('stats-container');
-    if (!container) return;
-
-    if (!fixture || fixture.status !== 'finished') {
-        container.innerHTML = `
-            <div style="text-align:center; padding:40px 20px;">
-                <div style="font-size:32px; margin-bottom:12px;">⏳</div>
-                <div style="font-weight:800; font-size:15px; margin-bottom:6px;">Stats Not Yet Available</div>
-                <div style="color:var(--text-muted); font-size:13px;">Stats will appear here once the match has finished.</div>
-            </div>`;
-        return;
-    }
-
-    if (fixture.stats_image) {
-        container.innerHTML = `
-            <div style="border-radius:16px; overflow:hidden; margin-bottom:8px;">
-                <img src="${fixture.stats_image}" style="width:100%; display:block; border-radius:16px;" 
-                     onerror="this.parentElement.innerHTML='<div style=\'text-align:center;padding:40px;color:var(--text-muted);\'>Stats image could not be loaded.</div>'" />
-            </div>
-            <div style="text-align:center; font-size:10px; color:var(--text-muted); padding:4px 0 12px;">Tap and hold image to save</div>`;
-    } else {
-        container.innerHTML = `
-            <div style="text-align:center; padding:40px 20px;">
-                <div style="font-size:32px; margin-bottom:12px;">📊</div>
-                <div style="font-weight:800; font-size:15px; margin-bottom:6px;">No Stats Yet</div>
-                <div style="color:var(--text-muted); font-size:13px;">Stats image will appear here once uploaded in the Admin panel.</div>
-            </div>`;
-    }
-}
-
-// ── ADMIN: Stats image preview before upload ─────────────────────────────────
-function adminPreviewStats(input) {
-    if (!input.files || !input.files[0]) return;
-    const file = input.files[0];
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        document.getElementById('admin-stats-img').src = e.target.result;
-        document.getElementById('admin-stats-preview').style.display = 'block';
-    };
-    reader.readAsDataURL(file);
-}
-
-// ── ADMIN: Upload stats image to Supabase Storage ────────────────────────────
-async function adminSaveStatsImage() {
-    const customId = document.getElementById('admin-fixture-select').value;
-    if (!customId) { showToast('Please select a fixture first.'); return; }
-
-    const fileInput = document.getElementById('admin-stats-upload');
-    if (!fileInput.files || !fileInput.files[0]) {
-        showToast('Please choose an image first.');
-        return;
-    }
-
-    const file = fileInput.files[0];
-    const ext = file.name.split('.').pop();
-    const filePath = `stats/${customId}_stats.${ext}`;
-
-    showToast('Uploading...');
-
-    // Upload to Supabase Storage
-    const { error: uploadError } = await supabaseClient.storage
-        .from('videos')
-        .upload(filePath, file, { upsert: true, contentType: file.type });
-
-    if (uploadError) {
-        showToast('Upload failed. Check console.');
-        console.error(uploadError);
-        return;
-    }
-
-    // Get the public URL
-    const { data: urlData } = supabaseClient.storage
-        .from('videos')
-        .getPublicUrl(filePath);
-
-    const publicUrl = urlData.publicUrl;
-
-    // Save URL to fixtures table
-    const { error: dbError } = await supabaseClient
-        .from('fixtures')
-        .update({ stats_image: publicUrl })
-        .eq('custom_id', customId);
-
-    if (dbError) {
-        showToast('Image uploaded but failed to save URL. Check console.');
-        console.error(dbError);
-    } else {
-        showToast('Stats image saved successfully! ✓');
-    }
-}
-
-
-// ── ADMIN: Squad Management ──────────────────────────────────────────────────
-async function adminLoadSquadForDelete() {
-    const { data } = await supabaseClient.from('squad').select('id, name, position').order('name');
-    if (!data) return;
-    const sel = document.getElementById('admin-delete-player-select');
-    if (!sel) return;
-    sel.innerHTML = '<option value="">-- Select Player --</option>';
-    data.forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p.id;
-        opt.textContent = `${p.name} (${p.position})`;
-        sel.appendChild(opt);
-    });
-}
-
-async function adminAddPlayer() {
-    const number      = document.getElementById('admin-player-number').value;
-    const name        = document.getElementById('admin-player-name').value.trim();
-    const position    = document.getElementById('admin-player-position').value;
-    const nationality = document.getElementById('admin-player-nationality')?.value.trim() || '';
-    const dob         = document.getElementById('admin-player-dob')?.value || '';
-    const statsUrl    = document.getElementById('admin-player-stats-url').value.trim();
-
-    if (!name || !position) { showToast('Please enter name and position.'); return; }
-
-    const { error } = await supabaseClient.from('squad').insert({
-        number:      number ? parseInt(number) : null,
-        name,
-        position,
-        nationality: nationality || null,
-        dob:         dob || null,
-        stats_url:   statsUrl || null
-    });
-
-    if (error) {
-        showToast('Error adding player.');
-        console.error(error);
-    } else {
-        showToast(`${name} added! ✓`);
-        ['admin-player-number','admin-player-name','admin-player-position',
-         'admin-player-nationality','admin-player-dob','admin-player-stats-url']
-        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-        fetchSquad();
-        adminLoadSquadForDelete();
-    }
-}
-
-async function adminDeletePlayer() {
-    const id = document.getElementById('admin-delete-player-select').value;
-    if (!id) { showToast('Please select a player first.'); return; }
-
-    const name = document.getElementById('admin-delete-player-select').selectedOptions[0].text;
-    if (!confirm(`Delete ${name}?`)) return;
-
-    const { error } = await supabaseClient.from('squad').delete().eq('id', id);
-    if (error) {
-        showToast('Error deleting player.');
-        console.error(error);
-    } else {
-        showToast(`${name} deleted.`);
-        fetchSquad();
-        adminLoadSquadForDelete();
-    }
-}
-
-
-
-// ── ADMIN: Score image preview ───────────────────────────────────────────────
-function adminPreviewScoreImage(input) {
-    if (!input.files || !input.files[0]) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        document.getElementById('admin-score-img').src = e.target.result;
-        document.getElementById('admin-score-image-preview').style.display = 'block';
-    };
-    reader.readAsDataURL(input.files[0]);
-}
-
-// ── ADMIN: Upload score image to Supabase Storage ────────────────────────────
-async function adminSaveScoreImage() {
-    const customId = document.getElementById('admin-fixture-select').value;
-    if (!customId) { showToast('Please select a fixture first.'); return; }
-
-    const fileInput = document.getElementById('admin-score-upload');
-    if (!fileInput.files || !fileInput.files[0]) {
-        showToast('Please choose an image first.');
-        return;
-    }
-
-    const file = fileInput.files[0];
-    const ext = file.name.split('.').pop();
-    const filePath = `scores/${customId}_score.${ext}`;
-
-    showToast('Uploading...');
-
-    const { error: uploadError } = await supabaseClient.storage
-        .from('videos')
-        .upload(filePath, file, { upsert: true, contentType: file.type });
-
-    if (uploadError) {
-        showToast('Upload failed. Check console.');
-        console.error(uploadError);
-        return;
-    }
-
-    const { data: urlData } = supabaseClient.storage
-        .from('videos')
-        .getPublicUrl(filePath);
-
-    const { error: dbError } = await supabaseClient
-        .from('fixtures')
-        .update({ score_image: urlData.publicUrl })
-        .eq('custom_id', customId);
-
-    if (dbError) {
-        showToast('Image uploaded but failed to save URL.');
-        console.error(dbError);
-    } else {
-        showToast('Score image saved! ✓');
-    }
-}
-
-// ── HISTORY: Load season cards on home screen ────────────────────────────────
-async function loadHistorySeasons() {
-    const { data, error } = await supabaseClient
-        .from('seasons')
-        .select('*')
-        .order('id', { ascending: false });
-
-    const container = document.getElementById('history-seasons-container');
-    if (!container) return;
-    if (!data || data.length === 0) {
-        container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:13px;">No previous seasons yet.</div>';
-        return;
-    }
-
-    container.innerHTML = '';
-    data.forEach(season => {
-        container.innerHTML += `
-            <div class="card row-flex" style="cursor:pointer; border-left:4px solid var(--red);" onclick="openHistoryScreen('${season.season_label}')">
-                <div>
-                    <div style="font-weight:800; font-size:15px;">${season.season_label}</div>
-                    <div style="font-size:11px; color:var(--text-muted); margin-top:3px;">Winner: ${season.winner || '—'} · ${season.winner_points || 0} pts</div>
-                </div>
-                <div style="font-weight:800; color:var(--red);">›</div>
-            </div>`;
-    });
-}
-
-// ── HISTORY: Open a season's full history screen ─────────────────────────────
-async function openHistoryScreen(seasonLabel) {
-    document.getElementById('history-screen-title').textContent = `${seasonLabel} Season`;
-
-    // Fetch fixtures for this season
-    const { data: fixtures } = await supabaseClient
-        .from('fixtures')
-        .select('*')
-        .eq('season', seasonLabel)
-        .eq('status', 'finished')
-        .order('id', { ascending: true });
-
-    // Fetch predictions for this season to calculate standings
-    const { data: preds } = await supabaseClient
-        .from('predictions')
-        .select('user_name, points_won')
-        .eq('season', seasonLabel);
-
-    // Calculate standings
-    const totals = {};
-    if (preds) {
-        preds.forEach(p => {
-            if (!totals[p.user_name]) totals[p.user_name] = 0;
-            totals[p.user_name] += (parseInt(p.points_won) || 0);
-        });
-    }
-    const standings = Object.entries(totals)
-        .map(([name, pts]) => ({ name, pts }))
-        .sort((a, b) => b.pts - a.pts);
-
-    // Update winner card
-    if (standings.length > 0) {
-        document.getElementById('history-winner-name').textContent = standings[0].name;
-        document.getElementById('history-winner-points').textContent = standings[0].pts;
-    }
-
-    // Update standings table
-    const table = document.getElementById('history-standings-table');
-    table.innerHTML = '<tr><th>Pos</th><th>Player</th><th class="num">Pts</th></tr>';
-    standings.forEach((s, i) => {
-        table.innerHTML += `<tr>
-            <td class="rank">${i + 1}</td>
-            <td>${s.name}</td>
-            <td class="num">${s.pts}</td>
-        </tr>`;
-    });
-
-    // Update results list
-    const resultsList = document.getElementById('history-results-list');
-    resultsList.innerHTML = '';
-    if (fixtures && fixtures.length > 0) {
-        fixtures.forEach(f => {
-            const sofascoreUrl = f.sofascore_id
-                ? `https://www.sofascore.com/match/${f.sofascore_id}`
-                : null;
-            resultsList.innerHTML += `
-                <div class="card row-flex" style="margin-bottom:8px; ${sofascoreUrl ? 'cursor:pointer;' : ''}"
-                     ${sofascoreUrl ? `onclick="window.open('${sofascoreUrl}','_blank')"` : ''}>
-                    <div>
-                        <div style="font-size:11px; color:var(--text-muted); font-weight:700; margin-bottom:4px;">${f.match_date} · ${f.competition || 'Premier League'}</div>
-                        <div style="font-weight:800; font-size:14px;">${f.home_team} ${f.home_score} – ${f.away_score} ${f.away_team}</div>
-                    </div>
-                    ${sofascoreUrl ? '<div style="color:var(--red); font-weight:800;">›</div>' : ''}
-                </div>`;
-        });
-    } else {
-        resultsList.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">No results found.</div>';
-    }
-
-    switchScreen('screen-history');
-}
-
-// ── ADMIN: Archive current season ────────────────────────────────────────────
-async function adminArchiveSeason() {
-    const label = document.getElementById('admin-season-label').value.trim();
-    if (!label) { showToast('Please enter a season label.'); return; }
-
-    if (!confirm(`Archive the current season as "${label}"? This cannot be undone.`)) return;
-
-    showToast('Archiving...');
-
-    // Calculate final standings from predictions
-    const { data: preds } = await supabaseClient
-        .from('predictions')
-        .select('user_name, points_won');
-
-    const totals = {};
-    if (preds) {
-        preds.forEach(p => {
-            if (!totals[p.user_name]) totals[p.user_name] = 0;
-            totals[p.user_name] += (parseInt(p.points_won) || 0);
-        });
-    }
-    const standings = Object.entries(totals)
-        .map(([name, pts]) => ({ name, pts }))
-        .sort((a, b) => b.pts - a.pts);
-    const winner = standings[0]?.name || '—';
-    const winnerPts = standings[0]?.pts || 0;
-
-    // Tag all fixtures with season label
-    const { error: fixturesErr } = await supabaseClient
-        .from('fixtures')
-        .update({ season: label })
-        .is('season', null);
-
-    // Tag all predictions with season label
-    const { error: predsErr } = await supabaseClient
-        .from('predictions')
-        .update({ season: label })
-        .is('season', null);
-
-    if (fixturesErr || predsErr) {
-        showToast('Error archiving. Check console.');
-        console.error(fixturesErr, predsErr);
-        return;
-    }
-
-    // Save season record
-    const { error: seasonErr } = await supabaseClient
-        .from('seasons')
-        .insert({
-            season_label: label,
-            winner,
-            winner_points: winnerPts
-        });
-
-    if (seasonErr) {
-        showToast('Error saving season record.');
-        console.error(seasonErr);
-        return;
-    }
-
-    showToast(`Season ${label} archived!`);
-    document.getElementById('admin-season-label').value = '';
-    loadHistorySeasons();
-}
-
-// Run the initialization as soon as the page finishes loading
-window.addEventListener('load', initApp);
+        async function adminAddPlayer() {
+            const number = document.getElementById('admin-player-number').value; const name = document.getElementById('admin-player-name').value.trim(); const position = document.getElementById('admin-player-position').value; const nationality = document.getElementById('admin-player-nationality')?.value.trim() || ''; const dob = document.getElementById('admin-player-dob')?.value || ''; const statsUrl = document.getElementById('admin-player-stats-url').value.trim();
+            if (!name || !position) { showToast('Please enter name and position.'); return; }
+            const { error } = await supabaseClient.from('squad').insert({ number: number ? parseInt(number) : null, name, position, nationality: nationality || null, dob: dob || null, stats_url: statsUrl || null });
+            if (error) { showToast('Error adding player.'); console.error(error); } else { showToast(`${name} added! ✓`); ['admin-player-number','admin-player-name','admin-player-position','admin-player-nationality','admin-player-dob','admin-player-stats-url'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); fetchSquad(); adminLoadSquadForDelete(); }
+        }
+
+        async function adminDeletePlayer() {
+            const id = document.getElementById('admin-delete-player-select').value; if (!id) { showToast('Please select a player first.'); return; }
+            const name = document.getElementById('admin-delete-player-select').selectedOptions[0].text; if (!confirm(`Delete ${name}?`)) return;
+            const { error } = await supabaseClient.from('squad').delete().eq('id', id);
+            if (error) { showToast('Error deleting player.'); console.error(error); } else { showToast(`${name} deleted.`); fetchSquad(); adminLoadSquadForDelete(); }
+        }
+
+        function adminPreviewScoreImage(input) { if (!input.files || !input.files[0]) return; const reader = new FileReader(); reader.onload = (e) => { document.getElementById('admin-score-img').src = e.target.result; document.getElementById('admin-score-image-preview').style.display = 'block'; }; reader.readAsDataURL(input.files[0]); }
+
+        async function adminSaveScoreImage() {
+            const customId = document.getElementById('admin-fixture-select').value; if (!customId) { showToast('Please select a fixture first.'); return; }
+            const fileInput = document.getElementById('admin-score-upload'); if (!fileInput.files || !fileInput.files[0]) { showToast('Please choose an image first.'); return; }
+            const file = fileInput.files[0]; const ext = file.name.split('.').pop(); const filePath = `scores/${customId}_score.${ext}`;
+            showToast('Uploading...'); const { error: uploadError } = await supabaseClient.storage.from('videos').upload(filePath, file, { upsert: true, contentType: file.type });
+            if (uploadError) { showToast('Upload failed.'); console.error(uploadError); return; }
+            const { data: urlData } = supabaseClient.storage.from('videos').getPublicUrl(filePath);
+            const { error: dbError } = await supabaseClient.from('fixtures').update({ score_image: urlData.publicUrl }).eq('custom_id', customId);
+            if (dbError) { showToast('Failed to save URL.'); console.error(dbError); } else { showToast('Score image saved! ✓'); }
+        }
+
+        async function loadHistorySeasons() {
+            const { data, error } = await supabaseClient.from('seasons').select('*').order('id', { ascending: false });
+            const container = document.getElementById('history-seasons-container'); if (!container) return;
+            if (!data || data.length === 0) { container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:13px;">No previous seasons yet.</div>'; return; }
+            container.innerHTML = ''; data.forEach(season => { container.innerHTML += `<div class="card row-flex" style="cursor:pointer; border-left:4px solid var(--red);" onclick="openHistoryScreen('${season.season_label}')"><div><div style="font-weight:800; font-size:15px;">${season.season_label}</div><div style="font-size:11px; color:var(--text-muted); margin-top:3px;">Winner: ${season.winner || '—'} · ${season.winner_points || 0} pts</div></div><div style="font-weight:800; color:var(--red);">›</div></div>`; });
+        }
+
+        async function openHistoryScreen(seasonLabel) {
+            document.getElementById('history-screen-title').textContent = `${seasonLabel} Season`;
+            const [fixturesRes, predsRes] = await Promise.all([supabaseClient.from('fixtures').select('*').eq('season', seasonLabel).eq('status', 'finished').order('id', { ascending: true }), supabaseClient.from('predictions').select('user_name, points_won').eq('season', seasonLabel)]);
+            const fixtures = fixturesRes.data; const preds = predsRes.data; const totals = {};
+            if (preds) { preds.forEach(p => { if (!totals[p.user_name]) totals[p.user_name] = 0; totals[p.user_name] += (parseInt(p.points_won) || 0); }); }
+            const standings = Object.entries(totals).map(([name, pts]) => ({ name, pts })).sort((a, b) => b.pts - a.pts);
+            if (standings.length > 0) { document.getElementById('history-winner-name').textContent = standings[0].name; document.getElementById('history-winner-points').textContent = standings[0].pts; }
+            const table = document.getElementById('history-standings-table'); table.innerHTML = '<tr><th>Pos</th><th>Player</th><th class="num">Pts</th></tr>';
+            standings.forEach((s, i) => { table.innerHTML += `<tr><td class="rank">${i + 1}</td><td>${s.name}</td><td class="num">${s.pts}</td></tr>`; });
+            const resultsList = document.getElementById('history-results-list'); resultsList.innerHTML = '';
+            if (fixtures && fixtures.length > 0) { fixtures.forEach(f => { const sofascoreUrl = f.sofascore_id ? `https://www.sofascore.com/match/${f.sofascore_id}` : null; resultsList.innerHTML += `<div class="card row-flex" style="margin-bottom:8px; ${sofascoreUrl ? 'cursor:pointer;' : ''}" ${sofascoreUrl ? `onclick="window.open('${sofascoreUrl}','_blank')"` : ''}><div><div style="font-size:11px; color:var(--text-muted); font-weight:700; margin-bottom:4px;">${f.match_date} · ${f.competition || 'Premier League'}</div><div style="font-weight:800; font-size:14px;">${f.home_team} ${f.home_score} – ${f.away_score} ${f.away_team}</div></div>${sofascoreUrl ? '<div style="color:var(--red); font-weight:800;">›</div>' : ''}</div>`; }); } else { resultsList.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">No results found.</div>'; }
+            switchScreen('screen-history');
+        }
+
+        async function adminArchiveSeason() {
+            const label = document.getElementById('admin-season-label').value.trim(); if (!label) { showToast('Please enter a season label.'); return; }
+            if (!confirm(`Archive current season as "${label}"?`)) return; showToast('Archiving...');
+            const { data: preds } = await supabaseClient.from('predictions').select('user_name, points_won'); const totals = {};
+            if (preds) { preds.forEach(p => { if (!totals[p.user_name]) totals[p.user_name] = 0; totals[p.user_name] += (parseInt(p.points_won) || 0); }); }
+            const standings = Object.entries(totals).map(([name, pts]) => ({ name, pts })).sort((a, b) => b.pts - a.pts);
+            const winner = standings[0]?.name || '—'; const winnerPts = standings[0]?.pts || 0;
+            const [fixturesErr, predsErr] = await Promise.all([supabaseClient.from('fixtures').update({ season: label }).is('season', null), supabaseClient.from('predictions').update({ season: label }).is('season', null)]);
+            if (fixturesErr.error || predsErr.error) { showToast('Error archiving.'); return; }
+            const { error: seasonErr } = await supabaseClient.from('seasons').insert({ season_label: label, winner, winner_points: winnerPts });
+            if (seasonErr) { showToast('Error saving season record.'); return; }
+            showToast(`Season ${label} archived!`); document.getElementById('admin-season-label').value = ''; loadHistorySeasons();
+        }
+
+        window.addEventListener('load', initApp);
     </script>
 </body>
 </html>
