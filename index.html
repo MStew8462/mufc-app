@@ -1400,20 +1400,77 @@
         }
 
         async function fetchSquad() {
-            const { data: players } = await supabaseClient.from('squad').select('*').order('name', { ascending: true }); if (!players) return;
-            window._squadPlayers = players.filter(p => p.position !== 'GK'); const dropdown = document.getElementById('input-scorer');
-            dropdown.innerHTML = '<option value="" disabled selected>Choose scorer</option>';
-            players.filter(p => p.position !== 'GK').forEach(p => { const opt = document.createElement('option'); opt.value = p.name; opt.innerText = `${p.number || '0'}. ${p.name}`; dropdown.appendChild(opt); });
-            const containers = { 'GK': 'squad-gk', 'DF': 'squad-df', 'MF': 'squad-mf', 'FW': 'squad-fw' };
-            Object.values(containers).forEach(id => document.getElementById(id).innerHTML = '');
-            players.forEach(p => {
-                const posMap = { GK: 'pos-gk', DF: 'pos-df', MF: 'pos-mf', FW: 'pos-fw' }; const posLabel = { GK: 'GK', DF: 'DEF', MF: 'MID', FW: 'FWD' }; const isGK = p.position === 'GK';
-                let ageStr = ''; let dobStr = ''; if (p.dob) { const dob = new Date(p.dob); const today = new Date(); let age = today.getFullYear() - dob.getFullYear(); const m = today.getMonth() - dob.getMonth(); if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--; ageStr = `${age}`; dobStr = dob.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); }
-                const div = document.createElement('div'); div.className = 'squad-card';
-                div.innerHTML = `<div class="squad-avatar ${isGK ? 'gk-avatar' : ''}">${p.number || '—'}</div><div class="squad-info"><div class="squad-name">${p.name}</div><span class="squad-pos-badge ${posMap[p.position] || 'pos-fw'}">${posLabel[p.position] || p.position}</span><div style="margin-top:5px; display:flex; flex-direction:column; gap:2px;">${p.nationality ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">${p.nationality}</div>` : ''}${dobStr ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">Born ${dobStr}${ageStr ? ` (Age ${ageStr})` : ''}</div>` : ''}</div></div>${p.stats_url ? `<button class="squad-stats-btn" onclick="window.open('${p.stats_url}','_blank'); event.stopPropagation();">Stats</button>` : ''}`;
-                document.getElementById(containers[p.position]).appendChild(div);
-            });
+    const { data: players } = await supabaseClient.from('squad').select('*').order('name', { ascending: true });
+    if (!players) return;
+    window._squadPlayers = players.filter(p => p.position !== 'GK'); // store for admin scorer dropdown
+    
+    // 1. HOME SCREEN MODAL DROPDOWN POPULATION
+    const dropdown = document.getElementById('input-scorer');
+    if (dropdown) {
+        dropdown.innerHTML = '<option value="" disabled selected>Choose scorer</option>';
+        players.filter(p => p.position !== 'GK').forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.name; opt.innerText = `${p.number || '0'}. ${p.name}`;
+            dropdown.appendChild(opt);
+        });
+    }
+
+    // 2. FIXED: ADMIN PANEL RESULT DROPDOWN POPULATION
+    const adminDropdown = document.getElementById('admin-scorer-select');
+    if (adminDropdown) {
+        adminDropdown.innerHTML = '<option value="None">None</option>'; // Safe default for 0-0 draws
+        players.filter(p => p.position !== 'GK').forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.name; opt.innerText = `${p.number || '0'}. ${p.name}`;
+            adminDropdown.appendChild(opt);
+        });
+    }
+
+    // 3. SQUAD SCREEN LAYOUT CARDS GENERATION
+    const containers = { 'GK': 'squad-gk', 'DF': 'squad-df', 'MF': 'squad-mf', 'FW': 'squad-fw' };
+    Object.values(containers).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '';
+    });
+    
+    players.forEach(p => {
+        const posMap = { GK: 'pos-gk', DF: 'pos-df', MF: 'pos-mf', FW: 'pos-fw' };
+        const posLabel = { GK: 'GK', DF: 'DEF', MF: 'MID', FW: 'FWD' };
+        const isGK = p.position === 'GK';
+
+        let ageStr = '';
+        let dobStr = '';
+        if (p.dob) {
+            const dob = new Date(p.dob);
+            const today = new Date();
+            let age = today.getFullYear() - dob.getFullYear();
+            const m = today.getMonth() - dob.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+            ageStr = `${age}`;
+            dobStr = dob.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
         }
+
+        const div = document.createElement('div');
+        div.className = 'squad-card';
+        div.innerHTML = `
+            <div class="squad-avatar ${isGK ? 'gk-avatar' : ''}">
+                ${p.number || '—'}
+            </div>
+            <div class="squad-info">
+                <div class="squad-name">${p.name}</div>
+                <span class="squad-pos-badge ${posMap[p.position] || 'pos-fw'}">${posLabel[p.position] || p.position}</span>
+                <div style="margin-top:5px; display:flex; flex-direction:column; gap:2px;">
+                    ${p.nationality ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">${p.nationality}</div>` : ''}
+                    ${dobStr ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">Born ${dobStr}${ageStr ? ` (Age ${ageStr})` : ''}</div>` : ''}
+                </div>
+            </div>
+            ${p.stats_url ? `<button class="squad-stats-btn" onclick="window.open('${p.stats_url}','_blank'); event.stopPropagation();">Stats</button>` : ''}
+        `;
+        
+        const targetContainer = document.getElementById(containers[p.position]);
+        if (targetContainer) targetContainer.appendChild(div);
+    });
+}
 
         function toggleHistory() { const section = document.getElementById('history-section'); const btn = document.getElementById('btn-toggle-history'); if (section.style.display === 'none') { section.style.display = 'block'; btn.innerText = '- Hide Previous Results'; } else { section.style.display = 'none'; btn.innerText = '+ View Previous Results'; } }
 
@@ -1486,38 +1543,43 @@
 
         function adminSwitchUser(newUser) { if (!newUser) return; currentUser = newUser; try { localStorage.setItem('mufc_user', newUser); } catch(e) {} location.reload(); }
 
-        // Reliable live engine that converts the BBC feed into clean text headlines
+        // Reliable live engine that converts the BBC feed into interactive, clickable text headlines
 async function fetchLiveMufcNews() {
     const marquee = document.getElementById('native-ticker-marquee');
     if (!marquee) return;
     
     const rssUrl = "https://newsrss.bbc.co.uk/rss/sportonline_world_edition/football/teams/m/man_utd/rss.xml";
-    
-    // CACHE BUSTER: Appending a random timestamp forces PWAs to bypass local cache and hit the real internet
     const primaryBridge = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}&_nocache=${Date.now()}`;
     
     try {
-        // Explicitly pass cache configurations to the fetch event to completely block PWA caching
-        const response = await fetch(primaryBridge, {
-            cache: "no-store",
-            headers: {
-                "Cache-Control": "no-cache",
-                "Pragma": "no-cache"
-            }
-        });
+        const response = await fetch(primaryBridge, { cache: "no-store" });
         if (!response.ok) throw new Error('Primary bridge failed');
         
         const data = await response.json();
         
-        // Extract headlines using a clean text regex parser (highly reliable for tickers)
+        // Extract headlines and links side-by-side using unified regex matches
+        const xmlString = data.contents;
         const titles = [];
-        const regex = /<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>(.*?)<\/title>/g;
-        let match;
+        const links = [];
         
-        while ((match = regex.exec(data.contents)) !== null) {
-            const headline = match[1] || match[2];
-            if (headline && !headline.includes("BBC Sport") && !headline.includes("Manchester United - BBC Sport")) {
-                titles.push(headline.toUpperCase().trim());
+        const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+        const titleRegex = /<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>|<title>(.*?)<\/title>/;
+        const linkRegex = /<link><!\[CDATA\[([\s\S]*?)\]\]><\/link>|<link>(.*?)<\/link>/;
+        
+        let itemMatch;
+        while ((itemMatch = itemRegex.exec(xmlString)) !== null) {
+            const itemContent = itemMatch[1];
+            const tMatch = titleRegex.exec(itemContent);
+            const lMatch = linkRegex.exec(itemContent);
+            
+            if (tMatch && lMatch) {
+                const rawTitle = (tMatch[1] || tMatch[2]).replace(/<!\[CDATA\[|\]\]>/g, "").trim().toUpperCase();
+                const rawLink = (lMatch[1] || lMatch[2]).replace(/<!\[CDATA\[|\]\]>/g, "").trim();
+                
+                if (rawTitle && !rawTitle.includes("BBC SPORT")) {
+                    titles.push(rawTitle);
+                    links.push(rawLink);
+                }
             }
         }
         
@@ -1526,21 +1588,27 @@ async function fetchLiveMufcNews() {
             return;
         }
         
-        marquee.innerHTML = titles.slice(0, 7).join(" ••• ") + " ••• ";
+        // FIXED: Wrap each headline element inside an interactive anchor link tag
+        let htmlStream = "";
+        titles.slice(0, 7).forEach((title, i) => {
+            htmlStream += `<a href="${links[i]}" target="_blank" rel="noopener noreferrer" style="color: #ffffff; text-decoration: none; font-weight: 700; -webkit-tap-highlight-color: transparent;">${title}</a> ••• `;
+        });
+        
+        marquee.innerHTML = htmlStream;
         
     } catch (error) {
         console.error("News stream error, attempting backup...", error);
         
         try {
-            // Backup connection also implements an independent unique timestamp token
-            const backupResponse = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&_ts=${Date.now()}`, {
-                cache: "no-store"
-            });
+            const backupResponse = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&_ts=${Date.now()}`, { cache: "no-store" });
             const backupData = await backupResponse.json();
             
             if (backupData && backupData.items && backupData.items.length > 0) {
-                const backupHeadlines = backupData.items.map(item => item.title.toUpperCase().trim());
-                marquee.innerHTML = backupHeadlines.join(" ••• ") + " ••• ";
+                let backupHtml = "";
+                backupData.items.slice(0, 7).forEach(item => {
+                    backupHtml += `<a href="${item.link}" target="_blank" rel="noopener noreferrer" style="color: #ffffff; text-decoration: none; font-weight: 700; -webkit-tap-highlight-color: transparent;">${item.title.trim().toUpperCase()}</a> ••• `;
+                });
+                marquee.innerHTML = backupHtml;
                 return;
             }
         } catch (backupError) {
