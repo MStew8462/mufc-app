@@ -1486,27 +1486,70 @@
 
         function adminSwitchUser(newUser) { if (!newUser) return; currentUser = newUser; try { localStorage.setItem('mufc_user', newUser); } catch(e) {} location.reload(); }
 
-        async function fetchLiveMufcNews() {
-            const marquee = document.getElementById('native-ticker-marquee'); if (!marquee) return;
-            const rssUrl = "https://newsrss.bbc.co.uk/rss/sportonline_world_edition/football/teams/m/man_utd/rss.xml";
-            try {
-                const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`); if (!response.ok) throw new Error('Primary failed');
-                const data = await response.json(); const titles = []; const regex = /<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>(.*?)<\/title>/g; let match;
-                while ((match = regex.exec(data.contents)) !== null) { const headline = match[1] || match[2]; if (headline && !headline.includes("BBC Sport") && !headline.includes("Manchester United - BBC Sport")) { titles.push(headline.toUpperCase().trim()); } }
-                if (titles.length === 0) { throw new Error('Empty text'); }
-                let htmlStream = ""; titles.slice(0, 7).forEach((t, i) => { htmlStream += `<a href="https://www.bbc.co.uk/sport/football/teams/manchester-united" target="_blank" style="color:#fff; text-decoration:none;">${t}</a> ••• `; });
-                marquee.innerHTML = htmlStream;
-            } catch (error) {
-                try {
-                    const backupResponse = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`); const backupData = await backupResponse.json();
-                    if (backupData && backupData.items && backupData.items.length > 0) {
-                        let backupHtml = ""; backupData.items.forEach(item => { backupHtml += `<a href="${item.link}" target="_blank" rel="noopener noreferrer" style="color:#fff; text-decoration:none;">${item.title.trim().toUpperCase()}</a> ••• `; });
-                        marquee.innerHTML = backupHtml; return;
-                    }
-                } catch (backupError) { console.error("All streams locked out", backupError); }
-                marquee.innerHTML = "LATEST MANCHESTER UNITED TRANSFERS & TEAM NEWS INCOMING • STATUS: LIVE •";
+        // Reliable live engine that converts the BBC feed into clean text headlines
+async function fetchLiveMufcNews() {
+    const marquee = document.getElementById('native-ticker-marquee');
+    if (!marquee) return;
+    
+    const rssUrl = "https://newsrss.bbc.co.uk/rss/sportonline_world_edition/football/teams/m/man_utd/rss.xml";
+    
+    // CACHE BUSTER: Appending a random timestamp forces PWAs to bypass local cache and hit the real internet
+    const primaryBridge = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}&_nocache=${Date.now()}`;
+    
+    try {
+        // Explicitly pass cache configurations to the fetch event to completely block PWA caching
+        const response = await fetch(primaryBridge, {
+            cache: "no-store",
+            headers: {
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache"
+            }
+        });
+        if (!response.ok) throw new Error('Primary bridge failed');
+        
+        const data = await response.json();
+        
+        // Extract headlines using a clean text regex parser (highly reliable for tickers)
+        const titles = [];
+        const regex = /<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>(.*?)<\/title>/g;
+        let match;
+        
+        while ((match = regex.exec(data.contents)) !== null) {
+            const headline = match[1] || match[2];
+            if (headline && !headline.includes("BBC Sport") && !headline.includes("Manchester United - BBC Sport")) {
+                titles.push(headline.toUpperCase().trim());
             }
         }
+        
+        if (titles.length === 0) {
+            marquee.innerHTML = "GLORY GLORY MAN UNITED • WELCOME BACK TO THE MATCH DAY CENTRE •";
+            return;
+        }
+        
+        marquee.innerHTML = titles.slice(0, 7).join(" ••• ") + " ••• ";
+        
+    } catch (error) {
+        console.error("News stream error, attempting backup...", error);
+        
+        try {
+            // Backup connection also implements an independent unique timestamp token
+            const backupResponse = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&_ts=${Date.now()}`, {
+                cache: "no-store"
+            });
+            const backupData = await backupResponse.json();
+            
+            if (backupData && backupData.items && backupData.items.length > 0) {
+                const backupHeadlines = backupData.items.map(item => item.title.toUpperCase().trim());
+                marquee.innerHTML = backupHeadlines.join(" ••• ") + " ••• ";
+                return;
+            }
+        } catch (backupError) {
+            console.error("All news methods exhausted", backupError);
+        }
+        
+        marquee.innerHTML = "LATEST MANCHESTER UNITED TRANSFERS & TEAM NEWS INCOMING • STATUS: LIVE •";
+    }
+}
 
 
         async function initApp() {
