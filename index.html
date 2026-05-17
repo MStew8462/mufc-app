@@ -1588,10 +1588,11 @@ async function fetchLiveMufcNews() {
             return;
         }
         
-        // FIXED: Wrap each headline element inside an interactive anchor link tag
+        // Connect the updates together into a single stream of clickable headlines
         let htmlStream = "";
         titles.slice(0, 7).forEach((title, i) => {
-            htmlStream += `<a href="${links[i]}" target="_blank" rel="noopener noreferrer" style="color: #ffffff; text-decoration: none; font-weight: 700; -webkit-tap-highlight-color: transparent;">${title}</a> ••• `;
+            // FIXED: Added font-size: 10px !important; directly to the link layout style
+            htmlStream += `<a href="${links[i]}" target="_blank" rel="noopener noreferrer" style="font-size: 10px !important; color: #ffffff; text-decoration: none; font-weight: 700; -webkit-tap-highlight-color: transparent;">${title}</a> ••• `;
         });
         
         marquee.innerHTML = htmlStream;
