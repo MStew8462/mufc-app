@@ -1550,7 +1550,7 @@ async function fetchLiveMufcNews() {
     const marquee = document.getElementById('native-ticker-marquee');
     if (!marquee) return;
     
-    const rssUrl = "https://thepeoplesperson.com/feed/";
+    const rssUrl = "https://newsrss.bbc.co.uk/rss/sportonline_world_edition/football/teams/m/man_utd/rss.xml";
     const primaryBridge = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}&_nocache=${Date.now()}`;
     
     try {
