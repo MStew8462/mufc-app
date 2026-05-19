@@ -672,6 +672,17 @@
         <span class="media-float-pill">Open</span>
     </a>
 
+<div class="media-section-title">United Stories (Only Tier 1 &amp; 2)</div>
+    <div class="card" style="margin: 0 16px 12px 16px; padding: 16px; background: var(--card-bg); border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid #efefef;">
+        <div class="fix-date" style="margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+            <span style="display: inline-block; width: 6px; height: 6px; background: #da291c; border-radius: 50%;"></span>
+            Live Community Feed
+        </div>
+        <div id="reddit-transfer-mount" style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 10px 0;">Loading transfer wire...</div>
+        </div>
+    </div>
+
     <!-- UNITED SOCIALS -->
     <div class="media-section-title">United Socials</div>
     <div class="media-social-grid">
@@ -938,16 +949,48 @@
 
     <div class="admin-section">
         <div class="admin-section-header" onclick="adminToggle('panel-archive')">
-            Archive Season
+            New Season
             <span class="admin-chevron" id="panel-archive-chevron">›</span>
         </div>
         <div class="admin-panel" id="panel-archive">
-            <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px; line-height:1.5;">This will save the current season to History. Use at the end of the season before adding new fixtures.</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px; line-height:1.8;">
+                Use at end of season. This will:<br>
+                ✓ Archive season to History<br>
+                ✓ Reset all points to zero<br>
+                ✓ Delete highlight videos from storage<br>
+                ✓ Keep all fixtures and results
+            </div>
             <input type="text" id="admin-season-label" class="select-input" placeholder="Season label e.g. 2025-26">
-            <button class="btn-primary btn-full" style="background:#ff9500;" onclick="adminArchiveSeason()">Archive This Season</button>
+            <button class="btn-primary btn-full" style="background:#ff9500;" onclick="adminStartNewSeason()">Start New Season →</button>
         </div>
     </div>
 
+</div>
+
+<!-- NEW SEASON CONFIRMATION OVERLAY -->
+<div id="new-season-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:200000; justify-content:center; align-items:center; padding:20px;">
+    <div id="new-season-overlay-inner" style="background:white; border-radius:20px; padding:28px 24px; width:100%; max-width:390px;">
+        <div style="font-size:20px; font-weight:900; text-align:center; margin-bottom:4px;">End of Season</div>
+        <div style="font-size:13px; color:var(--text-muted); text-align:center; margin-bottom:20px;" id="new-season-subtitle"></div>
+
+        <div style="background:#f5f5f7; border-radius:12px; padding:16px; margin-bottom:16px;">
+            <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">Final Standings</div>
+            <div id="new-season-standings"></div>
+        </div>
+
+        <div style="background:#fff8ee; border:1px solid #ffe0a0; border-radius:12px; padding:14px; margin-bottom:20px;">
+            <div style="font-size:12px; font-weight:700; color:#ff9500; margin-bottom:6px;">This will:</div>
+            <div style="font-size:12px; color:var(--text-muted); line-height:1.8;">
+                • Archive as <strong id="new-season-label-display"></strong><br>
+                • Reset all points to 0<br>
+                • Delete highlight videos from storage<br>
+                • Keep all fixtures and images
+            </div>
+        </div>
+
+        <button class="btn-primary btn-full" style="background:#da291c; margin-bottom:8px;" onclick="adminConfirmNewSeason()">Confirm — Archive &amp; Reset</button>
+        <button class="btn-primary btn-full btn-close" style="margin:0;" onclick="document.getElementById('new-season-overlay').style.display='none'">Cancel</button>
+    </div>
 </div>
 
     <div class="modal-overlay" id="predModal">
@@ -1758,21 +1801,193 @@ async function fetchLiveMufcNews() {
             switchScreen('screen-history');
         }
 
-        async function adminArchiveSeason() {
-            const label = document.getElementById('admin-season-label').value.trim(); if (!label) { showToast('Please enter a season label.'); return; }
-            if (!confirm(`Archive current season as "${label}"?`)) return; showToast('Archiving...');
-            const { data: preds } = await supabaseClient.from('predictions').select('user_name, points_won'); const totals = {};
-            if (preds) { preds.forEach(p => { if (!totals[p.user_name]) totals[p.user_name] = 0; totals[p.user_name] += (parseInt(p.points_won) || 0); }); }
-            const standings = Object.entries(totals).map(([name, pts]) => ({ name, pts })).sort((a, b) => b.pts - a.pts);
-            const winner = standings[0]?.name || '—'; const winnerPts = standings[0]?.pts || 0;
-            const [fixturesErr, predsErr] = await Promise.all([supabaseClient.from('fixtures').update({ season: label }).is('season', null), supabaseClient.from('predictions').update({ season: label }).is('season', null)]);
-            if (fixturesErr.error || predsErr.error) { showToast('Error archiving.'); return; }
-            const { error: seasonErr } = await supabaseClient.from('seasons').insert({ season_label: label, winner, winner_points: winnerPts });
-            if (seasonErr) { showToast('Error saving season record.'); return; }
-            showToast(`Season ${label} archived!`); document.getElementById('admin-season-label').value = ''; loadHistorySeasons();
+        // ── NEW SEASON: Show confirmation screen ─────────────────────────────────
+        async function adminStartNewSeason() {
+            const label = document.getElementById('admin-season-label').value.trim();
+            if (!label) { showToast('Please enter a season label first.'); return; }
+
+            // Calculate current standings
+            const { data: preds } = await supabaseClient
+                .from('predictions')
+                .select('user_name, points_won');
+
+            const totals = {};
+            if (preds) {
+                preds.forEach(p => {
+                    if (!totals[p.user_name]) totals[p.user_name] = 0;
+                    totals[p.user_name] += (parseInt(p.points_won) || 0);
+                });
+            }
+            const standings = Object.entries(totals)
+                .map(([name, pts]) => ({ name, pts }))
+                .sort((a, b) => b.pts - a.pts);
+
+            // Populate confirmation overlay
+            document.getElementById('new-season-subtitle').textContent = label;
+            document.getElementById('new-season-label-display').textContent = label;
+            document.getElementById('new-season-standings').innerHTML = standings.map((s, i) => `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid #ebebeb; font-size:14px;">
+                    <span style="font-weight:${i===0?'900':'600'}; color:${i===0?'var(--red)':'var(--text-main)'};">
+                        ${i===0 ? '🏆 ' : ''}${s.name}
+                    </span>
+                    <span style="font-weight:800;">${s.pts} pts</span>
+                </div>`).join('');
+
+            // Store for confirm step
+            window._pendingSeasonLabel = label;
+            window._pendingStandings = standings;
+
+            // Show overlay
+            const overlay = document.getElementById('new-season-overlay');
+            overlay.style.display = 'flex';
         }
 
-        window.addEventListener('load', initApp);
-    </script>
+        // ── NEW SEASON: Execute after confirmation ────────────────────────────────
+        async function adminConfirmNewSeason() {
+            const label = window._pendingSeasonLabel;
+            const standings = window._pendingStandings || [];
+            if (!label) return;
+
+            const inner = document.getElementById('new-season-overlay-inner');
+            inner.innerHTML = '<div style="text-align:center; padding:40px 20px;"><div style="font-size:32px; margin-bottom:16px;">⏳</div><div style="font-size:16px; font-weight:800;">Archiving season...</div><div style="font-size:13px; color:#8e8e93; margin-top:8px;">Please wait</div></div>';
+
+            const winner = standings[0]?.name || '—';
+            const winnerPts = standings[0]?.pts || 0;
+
+            try {
+                // Step 1: Tag all fixtures with season label
+                const { error: fErr } = await supabaseClient
+                    .from('fixtures')
+                    .update({ season: label })
+                    .is('season', null);
+                if (fErr) throw new Error('Failed to tag fixtures.');
+
+                // Step 2: Tag all predictions with season label
+                const { error: pErr } = await supabaseClient
+                    .from('predictions')
+                    .update({ season: label })
+                    .is('season', null);
+                if (pErr) throw new Error('Failed to tag predictions.');
+
+                // Step 3: Save season record
+                const { error: sErr } = await supabaseClient
+                    .from('seasons')
+                    .insert({ season_label: label, winner, winner_points: winnerPts });
+                if (sErr) throw new Error('Failed to save season record.');
+
+                // Step 4: Reset leaderboard to 0
+                const { data: lbUsers } = await supabaseClient
+                    .from('leaderboard')
+                    .select('user_name');
+                if (lbUsers) {
+                    for (const u of lbUsers) {
+                        await supabaseClient
+                            .from('leaderboard')
+                            .update({ total_points: 0 })
+                            .eq('user_name', u.user_name);
+                    }
+                }
+
+                // Step 5: Delete highlight videos from storage
+                const { data: files } = await supabaseClient.storage
+                    .from('videos')
+                    .list('', { limit: 200 });
+
+                if (files && files.length > 0) {
+                    const videoFiles = files
+                        .filter(f => f.name && f.name.match(/\.(mp4|mov|avi|mkv|webm)$/i))
+                        .map(f => f.name);
+                    if (videoFiles.length > 0) {
+                        await supabaseClient.storage.from('videos').remove(videoFiles);
+                    }
+                }
+
+                // Step 6: Show success screen
+                inner.innerHTML = `
+                    <div style="text-align:center; padding:8px 0;">
+                        <div style="font-size:48px; margin-bottom:12px;">🏆</div>
+                        <div style="font-size:20px; font-weight:900; margin-bottom:6px;">${label} Complete!</div>
+                        <div style="font-size:14px; color:#8e8e93; margin-bottom:4px;">Season winner</div>
+                        <div style="font-size:26px; font-weight:900; color:var(--red); margin-bottom:20px;">${winner} — ${winnerPts} pts</div>
+                        <div style="font-size:12px; color:#8e8e93; line-height:1.8; margin-bottom:24px; background:#f5f5f7; border-radius:10px; padding:12px;">
+                            ✓ Season archived to History<br>
+                            ✓ All points reset to zero<br>
+                            ✓ Highlight videos cleared<br>
+                            ✓ Ready for next season
+                        </div>
+                        <button class="btn-primary btn-full" style="margin:0;" onclick="
+                            document.getElementById('new-season-overlay').style.display='none';
+                            document.getElementById('admin-season-label').value='';
+                            loadHistorySeasons();
+                            refreshUsers();
+                        ">Done</button>
+                    </div>`;
+
+            } catch (err) {
+                console.error('New season error:', err);
+                inner.innerHTML = `
+                    <div style="text-align:center; padding:20px;">
+                        <div style="font-size:28px; margin-bottom:12px;">⚠️</div>
+                        <div style="font-size:16px; font-weight:800; color:#da291c; margin-bottom:8px;">Something went wrong</div>
+                        <div style="font-size:13px; color:#8e8e93; margin-bottom:20px;">${err.message}</div>
+                        <button class="btn-primary btn-full btn-close" style="margin:0;" onclick="document.getElementById('new-season-overlay').style.display='none'">Close</button>
+                    </div>`;
+            }
+        }
+
+// Bulletproof cloud-connected data engine to map out r/reddevils Tier 1 & 2 transfers instantly
+async function fetchRedditTransferWire() {
+    const container = document.getElementById('reddit-transfer-mount');
+    if (!container) return;
+    
+    const redditRss = 'https://www.reddit.com/r/reddevils/search.rss?q=flair:%22Tier%201%22%20OR%20flair:%22Tier%202%22&restrict_sr=1&sort=new';
+    const stableEngineUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(redditRss)}&_ts=${Date.now()}`;
+    
+    try {
+        const response = await fetch(stableEngineUrl, { cache: "no-store" });
+        if (!response.ok) throw new Error('Data network rejected connection');
+        
+        const data = await response.json();
+        
+        if (!data || !data.items || data.items.length === 0) {
+            container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:10px 0;">No recent transfer threads found.</div>';
+            return;
+        }
+        
+        const feedEntries = data.items.slice(0, 3);
+        
+        container.innerHTML = '';
+        feedEntries.forEach(item => {
+            let cleanTitle = item.title.trim();
+            if (cleanTitle.length > 90) {
+                cleanTitle = cleanTitle.substring(0, 87) + "...";
+            }
+            
+            container.innerHTML += `
+                <a href="${item.link}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; display:block; padding:12px; background:#f2f2f7; border-radius:10px; border-left:3px solid var(--red); -webkit-tap-highlight-color:transparent;">
+                    <div style="font-size:11px; font-weight:700; color:var(--text-main); line-height:1.45; text-transform:uppercase; letter-spacing:-0.2px;">${cleanTitle}</div>
+                    <div style="font-size:9px; font-weight:800; color:var(--red); margin-top:6px; text-transform:uppercase; letter-spacing:0.4px; display:flex; align-items:center; gap:3px;">
+                        <span>Read Community Thread</span> <span style="font-size:11px;">➔</span>
+                    </div>
+                </a>
+            `;
+        });
+        
+    } catch (err) {
+        console.error("Reddit transfer line connection error:", err);
+        container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:10px 0;">Transfer wire updates loading...</div>';
+    }
+}
+
+// Unified initializer hook to cleanly run app boot cycles and fire media wires
+async function initAppWithMediaWires() {
+    await initApp();
+    if (currentUser) {
+        fetchRedditTransferWire();
+    }
+}
+
+window.addEventListener('load', initAppWithMediaWires);
+</script>
 </body>
 </html>
