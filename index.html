@@ -777,17 +777,17 @@
             <div class="ct-sub">Table</div>
         </div>
         <div class="comp-tile" onclick="compOpenDetail('ucl')">
-            <img src="https://img.sofascore.com/api/v1/unique-tournament/7/image" class="comp-logo">
+            <img src="https://svnbsbrlnjcimoaxtajm.supabase.co/storage/v1/object/public/videos/CL.png" class="comp-logo">
             <div class="ct-title">Champions League</div>
             <div class="ct-sub">League & KO</div>
         </div>
         <div class="comp-tile" onclick="compOpenDetail('fa')">
-            <img src="https://img.sofascore.com/api/v1/unique-tournament/19/image" class="comp-logo">
+            <img src="https://svnbsbrlnjcimoaxtajm.supabase.co/storage/v1/object/public/videos/FAC.png" class="comp-logo">
             <div class="ct-title">FA Cup</div>
             <div class="ct-sub">Bracket</div>
         </div>
         <div class="comp-tile" onclick="compOpenDetail('efl')">
-            <img src="https://img.sofascore.com/api/v1/unique-tournament/21/image" class="comp-logo">
+            <img src="https://svnbsbrlnjcimoaxtajm.supabase.co/storage/v1/object/public/videos/LC.png" class="comp-logo">
             <div class="ct-title">League Cup</div>
             <div class="ct-sub">Bracket</div>
         </div>
@@ -1291,14 +1291,25 @@
             if (!body || !currentUser) return;
             body.innerHTML = '<div style="padding:20px;color:var(--text-muted);">Loading…</div>';
             try {
-                const { data: preds } = await supabaseClient.from('predictions').select('*').eq('user_name', currentUser);
-                if (!preds || !preds.length) { body.innerHTML = '<div style="padding:16px;">No predictions yet.</div>'; return; }
+                const { data: preds } = await supabaseClient
+                    .from('predictions')
+                    .select('*')
+                    .eq('user_name', currentUser)
+                    .is('season', null); 
+                    
+                if (!preds || !preds.length) { body.innerHTML = '<div style="padding:16px;">No predictions saved for the active season yet.</div>'; return; }
                 const ids = [...new Set(preds.map(p => String(p.match_id)))];
-                const { data: fixtures } = await supabaseClient.from('fixtures').select('*').in('custom_id', ids);
+                const { data: fixtures } = await supabaseClient.from('fixtures').select('*, competition').in('custom_id', ids);
                 const fxMap = {}; (fixtures || []).forEach(f => { fxMap[String(f.custom_id)] = f; });
                 const rows = [];
-                preds.forEach(p => { const fx = fxMap[String(p.match_id)]; const tag = classifyPredRow(p, fx); if (tag) rows.push({ tag, pts: parseInt(p.points_won, 10) || 0, fx, pred: p }); });
-                const n = rows.length; if (!n) { body.innerHTML = '<div style="padding:16px;">No finished matches with results to score yet.</div>'; return; }
+                preds.forEach(p => { 
+                    const fx = fxMap[String(p.match_id)]; 
+                    // IGNORE FRIENDLIES IN STATS
+                    if (fx && fx.competition && fx.competition.toLowerCase().includes('friendly')) return;
+                    const tag = classifyPredRow(p, fx); 
+                    if (tag) rows.push({ tag, pts: parseInt(p.points_won, 10) || 0, fx, pred: p }); 
+                });
+                const n = rows.length; if (!n) { body.innerHTML = '<div style="padding:16px;">No competitive matches with results to score yet.</div>'; return; }
                 const exact = rows.filter(r => r.tag === 'S').length; const resultHits = rows.filter(r => r.tag === 'S' || r.tag === 'R').length;
                 const exactPct = Math.round((exact / n) * 1000) / 10; const resultPct = Math.round((resultHits / n) * 1000) / 10;
                 let best = null; rows.forEach(r => { if (!best || r.pts > best.pts) best = r; });
@@ -1334,8 +1345,14 @@
             const iframeLineups = document.getElementById('iframe-lineups'); if (iframeLineups && sofaId) { iframeLineups.src = `https://widgets.sofascore.com/embed/lineups?id=${sofaId}&widgetTheme=light`; }
             const videoPlayer = document.getElementById('native-video-player'); const highlightsTabBtn = document.querySelector('.m-tab[onclick*="highlights"]');
             if (videoUrl && videoUrl !== 'undefined' && videoUrl !== '' && videoUrl !== 'null') { videoPlayer.src = videoUrl; videoPlayer.load(); highlightsTabBtn.style.display = 'block'; } else { videoPlayer.src = ""; highlightsTabBtn.style.display = 'none'; }
-            const [fixtureRes, predsRes] = await Promise.all([supabaseClient.from('fixtures').select('home_score, away_score, actual_scorer, home_team, away_team, match_date, status, stats_image, score_image').eq('custom_id', searchId).maybeSingle(), supabaseClient.from('predictions').select('*').eq('match_id', searchId)]);
+            
+            // FETCH COMPETITION AS WELL
+            const [fixtureRes, predsRes] = await Promise.all([supabaseClient.from('fixtures').select('home_score, away_score, actual_scorer, home_team, away_team, match_date, status, stats_image, score_image, competition').eq('custom_id', searchId).maybeSingle(), supabaseClient.from('predictions').select('*').eq('match_id', searchId)]);
             const fixture = fixtureRes.data; const preds = predsRes.data; const row = document.getElementById('match-predictions-row'); row.innerHTML = '';
+            
+            // CHECK IF FRIENDLY
+            const isFriendly = fixture && fixture.competition && fixture.competition.toLowerCase().includes('friendly');
+
             if (preds && preds.length > 0) {
                 let needsLeaderboardUpdate = false;
                 for (const p of preds) {
@@ -1352,8 +1369,14 @@
                         if (pH === aH && pA === aA) { scoreLabel = '⚽ Exact Score'; } else if ((pH - pA) === (aH - aA)) { scoreLabel = '✓ Correct GD'; } else if ((pH > pA && aH > aA) || (pH < pA && aH < aA) || (pH === pA && aH === aA)) { scoreLabel = '✓ Correct Result'; } else { scoreLabel = '✗ No Points'; }
                         scorerCorrect = !!(fixture.actual_scorer && p.pred_scorer && p.pred_scorer.toLowerCase() === fixture.actual_scorer.toLowerCase() && p.pred_scorer.toLowerCase() !== 'none');
                     }
-                    if (p.points_won !== calculatedPoints) { await supabaseClient.from('predictions').update({ points_won: calculatedPoints }).eq('id', p.id); needsLeaderboardUpdate = true; }
-                    row.innerHTML += `<div class="card" style="flex: 1; min-width: 0; margin: 0; padding: 12px; text-align: center; border: 1px solid #e5e5ea;"><div style="font-weight: 800; font-size: 11px; text-transform: uppercase;">${p.user_name}</div><div style="font-size: 10px; color: var(--red); font-weight: 700;">${calculatedPoints} pts</div><div style="font-size: 18px; font-weight: 800; margin: 5px 0;">${p.pred_home}-${p.pred_away}</div><div style="font-size: 10px; font-weight: 600; color: var(--text-muted);">${scoreLabel}</div><div style="font-size: 10px; font-weight: 700; margin-top: 4px; color: ${scorerCorrect ? '#34c759' : 'var(--text-muted)'};">${p.pred_scorer || '-'}${scorerCorrect ? ' ⚽+3' : ''}</div></div>`;
+
+                    // ZERO OUT POINTS FOR DATABASE IF FRIENDLY
+                    let pointsToSave = isFriendly ? 0 : calculatedPoints;
+                    let displayPoints = isFriendly ? `${calculatedPoints} pts (Friendly)` : `${calculatedPoints} pts`;
+
+                    if (p.points_won !== pointsToSave) { await supabaseClient.from('predictions').update({ points_won: pointsToSave }).eq('id', p.id); needsLeaderboardUpdate = true; }
+                    
+                    row.innerHTML += `<div class="card" style="flex: 1; min-width: 0; margin: 0; padding: 12px; text-align: center; border: 1px solid #e5e5ea;"><div style="font-weight: 800; font-size: 11px; text-transform: uppercase;">${p.user_name}</div><div style="font-size: 10px; color: var(--red); font-weight: 700;">${displayPoints}</div><div style="font-size: 18px; font-weight: 800; margin: 5px 0;">${p.pred_home}-${p.pred_away}</div><div style="font-size: 10px; font-weight: 600; color: var(--text-muted);">${scoreLabel}</div><div style="font-size: 10px; font-weight: 700; margin-top: 4px; color: ${scorerCorrect ? '#34c759' : 'var(--text-muted)'};">${p.pred_scorer || '-'}${scorerCorrect ? ' ⚽+3' : ''}</div></div>`;
                 }
                 if (needsLeaderboardUpdate) { refreshUsers(); }
             } else { row.innerHTML = '<div style="font-size:12px; color:#888; padding-left:16px;">No predictions found.</div>'; }
@@ -1397,6 +1420,25 @@
                     const nextCard = document.getElementById('next-match-card'); nextCard.setAttribute('onclick', `openMatchCentre('${currentMatchId}', '${m.sofascore_id}', '${m.stats_url || ''}', '${m.highlights_url || ''}')`);
                     document.getElementById('home-fix-date').innerText = `Next Fixture • ${m.match_date}`; document.getElementById('home-fix-teams').innerText = `${m.home_team} vs ${m.away_team}`; currentMatchLabel = `${m.home_team} vs ${m.away_team}`; document.getElementById('home-fix-sub').innerText = `${m.stadium} • ${m.kickoff_time}`;
                     const ko = parseKickoffDate(m.match_date, m.kickoff_time); updatePredictionLockState(ko);
+                } else {
+                    // No upcoming fixtures — season complete
+                    const nextCard = document.getElementById('next-match-card');
+                    nextCard.setAttribute('onclick', '');
+                    nextCard.style.cursor = 'default';
+                    nextCard.style.borderLeft = '6px solid #34c759';
+                    nextCard.style.borderRight = '6px solid #34c759';
+                    document.getElementById('home-fix-date').innerText = '2025 — 26 Season';
+                    document.getElementById('home-fix-teams').innerText = 'Season Complete';
+                    document.getElementById('home-fix-sub').innerText = 'See you next season — Glory Glory Man United!';
+                    // Hide prediction button and deadline
+                    const btn = document.getElementById('btn-home-predict');
+                    if (btn) btn.style.display = 'none';
+                    const deadlineMsg = document.getElementById('prediction-deadline-msg');
+                    if (deadlineMsg) deadlineMsg.style.display = 'none';
+                    const lockedMsg = document.getElementById('prediction-locked-msg');
+                    if (lockedMsg) lockedMsg.style.display = 'none';
+                    const preview = document.getElementById('prediction-preview');
+                    if (preview) preview.style.display = 'none';
                 }
                 let lastFixture = null; let awaitingScore = false;
                 if (upcomingData && upcomingData.length > 0) {
