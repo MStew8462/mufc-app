@@ -1632,6 +1632,7 @@
 
         // Reliable live engine that converts the BBC feed into interactive, clickable text headlines
 // Reliable live engine that converts the BBC feed into interactive, clickable text headlines
+// Reliable live engine that converts the BBC feed into interactive, clickable text headlines
 async function fetchLiveMufcNews() {
     const marquee = document.getElementById('native-ticker-marquee');
     if (!marquee) return;
@@ -1661,13 +1662,17 @@ async function fetchLiveMufcNews() {
             
             if (tMatch && lMatch) {
                 let rawTitle = (tMatch[1] || tMatch[2] || '').replace(/<!\[CDATA\[|\]\]>/g, "").trim().toUpperCase();
-                const rawLink = (lMatch[1] || lMatch[2] || '').replace(/<!\[CDATA\[|\]\]>/g, "").trim();
+                let rawLink = (lMatch[1] || lMatch[2] || '').replace(/<!\[CDATA\[|\]\]>/g, "").trim();
                 
-                // Skip channel title and generic entries
+                // Strong filtering for actual news headlines
                 if (rawTitle && 
+                    rawTitle.length > 20 && 
                     !rawTitle.includes("BBC SPORT") && 
                     !rawTitle.includes("MANCHESTER UNITED") && 
-                    rawTitle.length > 15) {   // Filter very short titles
+                    !rawTitle.includes("PODCAST") && 
+                    !rawTitle.includes("SOUNDS") &&
+                    rawLink.includes("bbc.co.uk/sport")) {
+                    
                     titles.push(rawTitle);
                     links.push(rawLink);
                 }
@@ -1687,33 +1692,10 @@ async function fetchLiveMufcNews() {
         marquee.innerHTML = htmlStream;
         
     } catch (error) {
-        console.error("News stream error, attempting backup...", error);
-        
-        try {
-            const backupResponse = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&_ts=${Date.now()}`, { cache: "no-store" });
-            const backupData = await backupResponse.json();
-            
-            if (backupData && backupData.items && backupData.items.length > 0) {
-                let backupHtml = "";
-                backupData.items.slice(0, 7).forEach(item => {
-                    const cleanTitle = item.title.trim().toUpperCase();
-                    if (!cleanTitle.includes("BBC SPORT") && cleanTitle.length > 15) {
-                        backupHtml += `<a href="${item.link}" target="_blank" rel="noopener noreferrer" style="color: #ffffff; text-decoration: none; font-weight: 700; -webkit-tap-highlight-color: transparent;">${cleanTitle}</a> ••• `;
-                    }
-                });
-                if (backupHtml) {
-                    marquee.innerHTML = backupHtml;
-                    return;
-                }
-            }
-        } catch (backupError) {
-            console.error("All news methods exhausted", backupError);
-        }
-        
+        console.error("News stream error:", error);
         marquee.innerHTML = "LATEST MANCHESTER UNITED NEWS • GLORY GLORY!";
     }
 }
-
 
         async function initApp() {
     const loginScreen = document.getElementById('screen-login');
