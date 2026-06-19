@@ -1671,49 +1671,36 @@
         async function fetchLiveMufcNews() {
     const marquee = document.getElementById('native-ticker-marquee');
     if (!marquee) return;
-    
-    // The official BBC Manchester United RSS feed
-    const bbcRssUrl = 'https://feeds.bbci.co.uk/sport/football/teams/manchester-united/rss.xml';
-    
-    // We use rss2json to bypass CORS and automatically convert the messy XML into clean JSON
-    const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(bbcRssUrl)}&_nocache=${Date.now()}`;
-    
+
+    // Try rss2json first (often more reliable for this)
+    const rssUrl = "https://feeds.bbci.co.uk/sport/football/teams/manchester-united/rss.xml";
+    const proxy = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&_ts=${Date.now()}`;
+
     try {
-        const response = await fetch(apiUrl, { cache: "no-store" });
-        if (!response.ok) throw new Error("News bridge offline");
-        
-        const data = await response.json();
-        
-        // If the fetch succeeds but the BBC feed is empty
-        if (!data || !data.items || data.items.length === 0) {
-            marquee.innerHTML = "MANCHESTER UNITED NEWS REFRESHED • NO NEW ENTRIES FOUND •";
-            return;
-        }
-
-        let htmlStream = "";
-        
-        // Loop through the top 7 news items to build the ticker
-        data.items.slice(0, 7).forEach((item) => {
-            // BBC titles sometimes have "Video: " or other prefixes, but we'll grab the raw text
-            let title = item.title.trim().toUpperCase();
-            const link = item.link;
-            
-            // Clean up extremely long titles so they fit nicely in the ticker
-            if (title.length > 90) {
-                title = title.substring(0, 87) + "...";
+        const response = await fetch(proxy, { cache: "no-store" });
+        if (response.ok) {
+            const data = await response.json();
+            if (data.items && data.items.length > 0) {
+                let html = "";
+                data.items.slice(0, 7).forEach(item => {
+                    const title = item.title.trim().toUpperCase();
+                    if (title.length > 20 && !title.includes("BBC SPORT")) {
+                        html += `<a href="${item.link}" target="_blank" rel="noopener noreferrer" style="font-size: 10px !important; color: #ffffff; text-decoration: none; font-weight: 700;">${title}</a> ••• `;
+                    }
+                });
+                if (html) {
+                    marquee.innerHTML = html;
+                    console.log("✅ BBC Ticker loaded successfully");
+                    return;
+                }
             }
-            
-            htmlStream += `<a href="${link}" target="_blank" rel="noopener noreferrer" style="font-size: 10px !important; color: #ffffff; text-decoration: none; font-weight: 700; -webkit-tap-highlight-color: transparent;">${title}</a> ••• `;
-        });
-
-        // Inject the live, clickable BBC headlines into the DOM
-        marquee.innerHTML = htmlStream;
-
-    } catch (error) {
-        console.error("BBC JSON Fetch Error:", error);
-        // A graceful fallback if the internet drops
-        marquee.innerHTML = "LATEST MANCHESTER UNITED NEWS ONLINE • STATUS: ACTIVE •";
+        }
+    } catch (e) {
+        console.warn("rss2json failed", e);
     }
+
+    // Ultimate fallback
+    marquee.innerHTML = "GLORY GLORY MAN UNITED • LATEST NEWS FROM BBC SPORT";
 }
 
         async function initApp() {
