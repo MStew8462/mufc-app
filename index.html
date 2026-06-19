@@ -1658,31 +1658,32 @@
             const lMatch = linkRegex.exec(itemContent);
             
             if (tMatch && lMatch) {
-                let rawTitle = (tMatch[1] || tMatch[2] || '').replace(/<!\[CDATA\[|\]\]>/g, "").trim().toUpperCase();
+                let rawTitle = (tMatch[1] || tMatch[2] || '').replace(/<!\[CDATA\[|\]\]>/g, "").trim();
                 let rawLink = (lMatch[1] || lMatch[2] || '').replace(/<!\[CDATA\[|\]\]>/g, "").trim();
                 
-                // Much more lenient filters
-                if (rawTitle.length > 15 && 
-                    !rawTitle.includes("BBC SPORT") && 
-                    !rawTitle.includes("FULL TIME") && 
-                    rawLink.includes("bbc.co.uk")) {
+                // Very strict filtering
+                if (rawTitle.length > 25 && 
+                    rawLink.includes('/sport/football/') && 
+                    !rawTitle.toUpperCase().includes("BBC SPORT") && 
+                    !rawTitle.toUpperCase().includes("MANCHESTER UNITED") && 
+                    !rawTitle.toUpperCase().includes("PODCAST")) {
                     
-                    titles.push(rawTitle);
+                    titles.push(rawTitle.toUpperCase());
                     links.push(rawLink);
                 }
             }
         }
         
-        console.log("Found headlines:", titles.length); // For debugging
+        console.log("BBC Headlines found:", titles.length, titles); // Debug
         
         if (titles.length === 0) {
-            marquee.innerHTML = "GLORY GLORY MAN UNITED • CHECK BACK FOR NEWS";
+            marquee.innerHTML = "GLORY GLORY MAN UNITED • LATEST NEWS LOADING...";
             return;
         }
         
         let htmlStream = "";
-        titles.slice(0, 8).forEach((title, i) => {
-            htmlStream += `<a href="${links[i]}" target="_blank" rel="noopener noreferrer" style="font-size: 10px !important; color: #ffffff; text-decoration: none; font-weight: 700;">${title}</a> ••• `;
+        titles.slice(0, 7).forEach((title, i) => {
+            htmlStream += `<a href="${links[i]}" target="_blank" rel="noopener noreferrer" style="font-size: 10px !important; color: #ffffff; text-decoration: none; font-weight: 700; -webkit-tap-highlight-color: transparent;">${title}</a> ••• `;
         });
         
         marquee.innerHTML = htmlStream;
