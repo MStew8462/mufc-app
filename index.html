@@ -1025,7 +1025,7 @@
                     display: inline-block;
                     white-space: nowrap;
                     padding-left: 100%;
-                    animation: tickerLoop 50s linear infinite !important;
+                    animation: tickerLoop 80s linear infinite !important;
                     pointer-events: auto;
                     -webkit-text-size-adjust: 100% !important;
                     text-size-adjust: 100% !important;
@@ -1468,61 +1468,23 @@
         }
 
         async function refreshUsers() {
-    const nameDisplay = document.getElementById('prof-name'); 
-    if (nameDisplay) nameDisplay.innerText = currentUser;
-    setLeaderboardSkeleton(true);
-    
-    try {
-        // 1. Pull current season predictions only
-        const { data: preds, error: predsError } = await supabaseClient
-            .from('predictions')
-            .select('user_name, points_won')
-            .is('season', null);
-            
-        if (predsError) throw predsError;
-
-        const table = document.getElementById('leaderboard-table');
-        if (!table) return;
-
-        // 2. Initialize default scores for the group
-        const totals = { "James": 0, "Adam": 0, "Matt": 0 };
-        
-        // 3. Populate points from active records
-        if (preds && preds.length > 0) {
-            preds.forEach(p => {
-                if (totals[p.user_name] !== undefined) {
-                    totals[p.user_name] += (parseInt(p.points_won, 10) || 0);
-                }
-            });
-        }
-        
-        // 4. Sort local array by performance
-        const sorted = Object.entries(totals).map(([user_name, total_points]) => ({
-            user_name,
-            total_points
-        })).sort((a, b) => b.total_points - a.total_points);
-        
-        // 5. Render clean read-only HTML rows
-        table.innerHTML = '<tr><th>Pos</th><th>User</th><th class="num">Pts</th></tr>';
-        sorted.forEach((user, index) => {
-            const isMe = user.user_name === currentUser;
-            table.innerHTML += `<tr class="${isMe ? 'highlight-row' : ''}">
-                <td class="rank">${index + 1}</td>
-                <td>${user.user_name}</td>
-                <td class="num">${user.total_points}</td>
-            </tr>`;
-            
-            if (isMe) {
-                document.getElementById('prof-points').innerText = user.total_points;
-                document.getElementById('prof-rank').innerText = `Rank ${index + 1}`;
+            const nameDisplay = document.getElementById('prof-name'); if (nameDisplay) nameDisplay.innerText = currentUser;
+            setLeaderboardSkeleton(true);
+            const { data: preds } = await supabaseClient.from('predictions').select('user_name, points_won');
+            const table = document.getElementById('leaderboard-table');
+            if (!preds) { if (table) { table.innerHTML = '<tr><th>Pos</th><th>User</th><th class="num">Pts</th></tr><tr><td colspan="3" style="text-align:center;padding:16px;color:#888;">No data</td></tr>'; } return; }
+            const totals = {}; preds.forEach(p => { if (!totals[p.user_name]) totals[p.user_name] = 0; totals[p.user_name] += (parseInt(p.points_won) || 0); });
+            for (const [userName, pts] of Object.entries(totals)) { await supabaseClient.from('leaderboard').update({ total_points: pts }).eq('user_name', userName); }
+            const sorted = Object.entries(totals).map(([user_name, total_points]) => ({ user_name, total_points })).sort((a, b) => b.total_points - a.total_points);
+            if (table) {
+                table.innerHTML = '<tr><th>Pos</th><th>User</th><th class="num">Pts</th></tr>';
+                sorted.forEach((user, index) => {
+                    const isMe = user.user_name === currentUser;
+                    table.innerHTML += `<tr class="${isMe ? 'highlight-row' : ''}"><td class="rank">${index + 1}</td><td>${user.user_name}</td><td class="num">${user.total_points}</td></tr>`;
+                    if (isMe) { document.getElementById('prof-points').innerText = user.total_points; document.getElementById('prof-rank').innerText = `Rank ${index + 1}`; }
+                });
             }
-        });
-    } catch (err) {
-        console.error("Leaderboard display runtime error:", err);
-        const table = document.getElementById('leaderboard-table');
-        if (table) table.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--red);">Error rendering standings</td></tr>';
-    }
-}
+        }
 
         async function fetchSquad() {
     const { data: players } = await supabaseClient.from('squad').select('*').order('name', { ascending: true });
@@ -1668,40 +1630,54 @@
 
         function adminSwitchUser(newUser) { if (!newUser) return; currentUser = newUser; try { localStorage.setItem('mufc_user', newUser); } catch(e) {} location.reload(); }
 
-        async function fetchLiveMufcNews() {
+        // Reliable live engine that converts the BBC feed into interactive, clickable text headlines
+async function fetchLiveMufcNews() {
     const marquee = document.getElementById('native-ticker-marquee');
     if (!marquee) return;
-
-    // Try rss2json first (often more reliable for this)
-    const rssUrl = "https://feeds.bbci.co.uk/sport/football/teams/manchester-united/rss.xml";
-    const proxy = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&_ts=${Date.now()}`;
-
+    
+    // Sky Sports Manchester United RSS - High reliability, no rumours, proxy-friendly
+    const skyRssUrl = 'https://www.skysports.com/rss/11667';
+    
+    // rss2json converts the raw XML into a clean, easy-to-read Javascript object
+    const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(skyRssUrl)}&_nocache=${Date.now()}`;
+    
     try {
-        const response = await fetch(proxy, { cache: "no-store" });
-        if (response.ok) {
-            const data = await response.json();
-            if (data.items && data.items.length > 0) {
-                let html = "";
-                data.items.slice(0, 7).forEach(item => {
-                    const title = item.title.trim().toUpperCase();
-                    if (title.length > 20 && !title.includes("BBC SPORT")) {
-                        html += `<a href="${item.link}" target="_blank" rel="noopener noreferrer" style="font-size: 10px !important; color: #ffffff; text-decoration: none; font-weight: 700;">${title}</a> ••• `;
-                    }
-                });
-                if (html) {
-                    marquee.innerHTML = html;
-                    console.log("✅ BBC Ticker loaded successfully");
-                    return;
-                }
-            }
+        const response = await fetch(apiUrl, { cache: "no-store" });
+        if (!response.ok) throw new Error("News bridge offline");
+        
+        const data = await response.json();
+        
+        // If the fetch succeeds but the feed happens to be empty
+        if (!data || !data.items || data.items.length === 0) {
+            marquee.innerHTML = "MANCHESTER UNITED NEWS REFRESHED • NO NEW ENTRIES FOUND •";
+            return;
         }
-    } catch (e) {
-        console.warn("rss2json failed", e);
-    }
 
-    // Ultimate fallback
-    marquee.innerHTML = "GLORY GLORY MAN UNITED • LATEST NEWS FROM BBC SPORT";
+        let htmlStream = "";
+        
+        // Loop through the top 7 breaking news items
+        data.items.slice(0, 7).forEach((item) => {
+            let title = item.title.trim().toUpperCase();
+            const link = item.link;
+            
+            // Clean up extremely long titles so they fit nicely in the ticker
+            if (title.length > 90) {
+                title = title.substring(0, 87) + "...";
+            }
+            
+            htmlStream += `<a href="${link}" target="_blank" rel="noopener noreferrer" style="font-size: 10px !important; color: #ffffff; text-decoration: none; font-weight: 700; -webkit-tap-highlight-color: transparent;">${title}</a> ••• `;
+        });
+
+        // Inject the live, clickable Sky Sports headlines into the DOM
+        marquee.innerHTML = htmlStream;
+
+    } catch (error) {
+        console.error("Sky Sports JSON Fetch Error:", error);
+        // A graceful fallback if the internet drops
+        marquee.innerHTML = "LATEST MANCHESTER UNITED NEWS ONLINE • STATUS: ACTIVE •";
+    }
 }
+
 
         async function initApp() {
     const loginScreen = document.getElementById('screen-login');
