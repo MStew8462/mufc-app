@@ -1677,61 +1677,74 @@
     // Fallback Array of different public proxy engines
     const proxyGateways = [
         `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}&_nocache=${Date.now()}`,
-        `https:// thingsproxy.freecodecamp.rocks/fetch?url=${encodeURIComponent(rssUrl)}`
+        `https://thingsproxy.freecodecamp.rocks/fetch?url=${encodeURIComponent(rssUrl)}`
     ];
     
     let xmlString = null;
     
-    // Cycle through proxies until one works
+    // Cycle through proxies until one successfully returns data
     for (const gateway of proxyGateways) {
         try {
             const response = await fetch(gateway, { cache: "no-store" });
             if (!response.ok) throw new Error("Gateway offline");
             
-            const rawData = await response.json();
-            // Handle differences in how proxies return data structures
-            xmlString = rawData.contents || rawData.data || rawData;
-            if (xmlString) break; 
+            // 1. Read the response as raw text first
+            const textData = await response.text();
+            
+            try {
+                // 2. Try parsing as JSON (For proxies like allorigins that wrap the text)
+                const jsonData = JSON.parse(textData);
+                xmlString = jsonData.contents || jsonData.data || textData;
+            } catch (jsonError) {
+                // 3. If it fails to parse as JSON, it means it is already raw XML (For thingsproxy)
+                xmlString = textData;
+            }
+            
+            // If we successfully secured an XML string containing an RSS tag, break the loop
+            if (xmlString && xmlString.includes("<rss")) break; 
         } catch (gatewayError) {
             console.warn(`News gateway failed: ${gateway}. Retrying alternative...`);
         }
     }
     
-    if (!xmlString) {
+    // If all proxies fail, show the generic online message
+    if (!xmlString || !xmlString.includes("<rss")) {
         marquee.innerHTML = "GLORY GLORY MAN UNITED • TICKER WIRE ONLINE •";
         return;
     }
     
     try {
+        // Use the browser's built-in DOMParser instead of fragile regex
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlString, "text/xml");
+        
+        const items = Array.from(xmlDoc.querySelectorAll("item"));
         const titles = [];
         const links = [];
         
-        const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-        const titleRegex = /<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>|<title>(.*?)<\/title>/;
-        const linkRegex = /<link><!\[CDATA\[([\s\S]*?)\]\]><\/link>|<link>(.*?)<\/link>/;
-        
-        let itemMatch;
-        while ((itemMatch = itemRegex.exec(xmlString)) !== null) {
-            const itemContent = itemMatch[1];
-            const tMatch = titleRegex.exec(itemContent);
-            const lMatch = linkRegex.exec(itemContent);
+        items.forEach(item => {
+            const titleElement = item.querySelector("title");
+            const linkElement = item.querySelector("link");
             
-            if (tMatch && lMatch) {
-                const rawTitle = (tMatch[1] || tMatch[2]).replace(/<!\[CDATA\[|\]\]>/g, "").trim().toUpperCase();
-                const rawLink = (lMatch[1] || lMatch[2]).replace(/<!\[CDATA\[|\]\]>/g, "").trim();
+            if (titleElement && linkElement) {
+                // .textContent safely extracts text, completely ignoring any messy CDATA tags
+                const rawTitle = titleElement.textContent.trim().toUpperCase();
+                const rawLink = linkElement.textContent.trim();
                 
                 if (rawTitle && !rawTitle.includes("BBC SPORT")) {
                     titles.push(rawTitle);
                     links.push(rawLink);
                 }
             }
-        }
+        });
         
+        // If the parser succeeds but finds no United-specific headlines
         if (titles.length === 0) {
             marquee.innerHTML = "MANCHESTER UNITED NEWS REFRESHED • NO NEW ENTRIES •";
             return;
         }
         
+        // Connect the updates together into a single stream of clickable headlines
         let htmlStream = "";
         titles.slice(0, 7).forEach((title, i) => {
             htmlStream += `<a href="${links[i]}" target="_blank" rel="noopener noreferrer" style="font-size: 10px !important; color: #ffffff; text-decoration: none; font-weight: 700; -webkit-tap-highlight-color: transparent;">${title}</a> ••• `;
