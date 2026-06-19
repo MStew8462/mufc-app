@@ -1126,26 +1126,32 @@
         });
 
         function switchScreen(screenId, navOrOpts) {
-            const skipScroll = navOrOpts && typeof navOrOpts === 'object' && navOrOpts.skipScroll === true;
-            if (screenId === 'screen-admin') {
-                if (currentUser !== 'Matt' && !masterAdminOverride) {
-                    showToast("Access Denied: Admins Only");
-                    return; 
-                }
-                adminLoadFixtures(); 
-                adminLoadSquadForDelete(); 
-            }
-            lastActiveScreenId = screenId;
-            document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
-            const target = document.getElementById(screenId);
-            if (target) target.style.display = 'block';
-            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-            const activeNav = document.querySelector(`.nav-item[data-screen="${screenId}"]`);
-            if (activeNav) activeNav.classList.add('active');
-            if (!skipScroll) window.scrollTo(0, 0);
-            if (screenId === 'screen-competitions' && typeof compOnScreenEnter === 'function') compOnScreenEnter();
-            if (screenId === 'screen-mystats' && typeof loadMyStats === 'function') loadMyStats();
+    const skipScroll = navOrOpts && typeof navOrOpts === 'object' && navOrOpts.skipScroll === true;
+    
+    // Check if trying to access the admin screen
+    if (screenId === 'screen-admin') {
+        // UPDATED: Allowed James and Adam alongside Matt for testing purposes
+        const allowedAdmins = ['Matt', 'James', 'Adam'];
+        
+        if (!allowedAdmins.includes(currentUser) && !masterAdminOverride) {
+            showToast("Access Denied: Admins Only");
+            return; 
         }
+        adminLoadFixtures(); 
+        adminLoadSquadForDelete(); 
+    }
+    
+    lastActiveScreenId = screenId;
+    document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+    const target = document.getElementById(screenId);
+    if (target) target.style.display = 'block';
+    document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+    const activeNav = document.querySelector(`.nav-item[data-screen="${screenId}"]`);
+    if (activeNav) activeNav.classList.add('active');
+    if (!skipScroll) window.scrollTo(0, 0);
+    if (screenId === 'screen-competitions' && typeof compOnScreenEnter === 'function') compOnScreenEnter();
+    if (screenId === 'screen-mystats' && typeof loadMyStats === 'function') loadMyStats();
+}
 
         function openCompetitionsNav() { window.compPendingFocus = null; switchScreen('screen-competitions'); }
         function openCompetitionsFromHome() { window.compPendingFocus = 'pl'; switchScreen('screen-competitions'); }
