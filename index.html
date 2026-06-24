@@ -496,12 +496,15 @@
         <button id="btn-home-predict" class="btn-primary" onclick="openPredictionModal()">Make Prediction</button>
         <div id="prediction-locked-msg" style="display:none; text-align:center; font-size:12px; font-weight:700; color:#8e8e93; margin: 0 16px 12px 16px; padding: 10px; background:#f5f5f7; border-radius:10px;">🔒 Prediction deadline has passed</div>
 
-        <div class="section-label">Last Match</div>
-<div class="card center-text" id="last-match-card" onclick="switchScreen('screen-match')" style="border-left: 6px solid var(--text-main); border-right: 6px solid var(--text-main);">
-    <div class="fix-date" id="last-fix-date">Loading...</div>
-    <div class="fix-teams" id="last-fix-teams">-- vs --</div>
-    <div class="fix-sub fixture-card-hint" id="last-fix-sub" style="color: var(--red); font-weight: 700;">Tap to view stats & predictions ➔</div>
-</div>
+        <!-- Wrapped Last Match Section for dynamic visibility -->
+        <div id="home-last-match-container" style="display: none;">
+            <div class="section-label">Last Match</div>
+            <div class="card center-text" id="last-match-card" onclick="switchScreen('screen-match')" style="border-left: 6px solid var(--text-main); border-right: 6px solid var(--text-main);">
+                <div class="fix-date" id="last-fix-date">Loading...</div>
+                <div class="fix-teams" id="last-fix-teams">-- vs --</div>
+                <div class="fix-sub fixture-card-hint" id="last-fix-sub" style="color: var(--red); font-weight: 700;">Tap to view stats & predictions ➔</div>
+            </div>
+        </div>
 
         <div class="gap-flex" style="margin-top: 16px;">
     <div class="card w-50" style="margin: 0; height: 220px; display: flex; flex-direction: column; overflow: hidden;">
@@ -1163,14 +1166,20 @@ function formatFullScoreText(fixture) {
 
         function switchScreen(screenId, navOrOpts) {
             const skipScroll = navOrOpts && typeof navOrOpts === 'object' && navOrOpts.skipScroll === true;
+            
             if (screenId === 'screen-admin') {
-                if (currentUser !== 'Matt' && !masterAdminOverride) {
+                // ⚠️ SECURITY CHECK DISABLED FOR TESTING
+                // The block below is "commented out" so any user can access Admin
+                /* if (currentUser !== 'Matt' && !masterAdminOverride) {
                     showToast("Access Denied: Admins Only");
                     return; 
                 }
+                */
+                
                 adminLoadFixtures(); 
                 adminLoadSquadForDelete(); 
             }
+            
             lastActiveScreenId = screenId;
             document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
             const target = document.getElementById(screenId);
@@ -1378,7 +1387,12 @@ function formatFullScoreText(fixture) {
             document.querySelectorAll('.m-content').forEach(c => c.classList.remove('active')); document.querySelectorAll('.m-tab').forEach(t => t.classList.remove('active'));
             const statsTabBtn = document.querySelector('.m-tab[onclick*="stats"]'); if (statsTabBtn) statsTabBtn.classList.add('active');
             document.getElementById('tab-stats').classList.add('active');
-            const iframeLineups = document.getElementById('iframe-lineups'); if (iframeLineups && sofaId) { iframeLineups.src = `https://widgets.sofascore.com/embed/lineups?id=${sofaId}&widgetTheme=light`; }
+            const iframeLineups = document.getElementById('iframe-lineups'); 
+if (iframeLineups && sofaId) { 
+    // Smart extraction: grab the ID from the end of the URL if it exists
+    let widgetId = sofaId.includes('id:') ? sofaId.split('id:')[1] : sofaId;
+    iframeLineups.src = `https://widgets.sofascore.com/embed/lineups?id=${widgetId}&widgetTheme=light`; 
+}
             const videoPlayer = document.getElementById('native-video-player'); const highlightsTabBtn = document.querySelector('.m-tab[onclick*="highlights"]');
             if (videoUrl && videoUrl !== 'undefined' && videoUrl !== '' && videoUrl !== 'null') { videoPlayer.src = videoUrl; videoPlayer.load(); highlightsTabBtn.style.display = 'block'; } else { videoPlayer.src = ""; highlightsTabBtn.style.display = 'none'; }
             
@@ -1441,8 +1455,8 @@ function formatFullScoreText(fixture) {
             setHomeFixtureSkeletons(true);
             try {
                 const now = new Date(); const threeHoursMs = 3 * 60 * 60 * 1000;
-                const { data: upcomingData } = await supabaseClient.from('fixtures').select('*').eq('status', 'upcoming').order('id', { ascending: true });
-                const { data: finishedData } = await supabaseClient.from('fixtures').select('*').eq('status', 'finished').order('id', { ascending: false });
+                const { data: upcomingData } = await supabaseClient.from('fixtures').select('*').is('season', null).eq('status', 'upcoming').order('id', { ascending: true });
+const { data: finishedData } = await supabaseClient.from('fixtures').select('*').is('season', null).eq('status', 'finished').order('id', { ascending: false });
                 let nextFixture = null; let currentFixture = null;
                 if (upcomingData && upcomingData.length > 0) {
                     for (const f of upcomingData) {
@@ -1482,16 +1496,24 @@ function formatFullScoreText(fixture) {
                     if (ko) { const msSinceKickoff = now - ko; if (msSinceKickoff >= threeHoursMs) { lastFixture = mostRecentUpcoming; awaitingScore = true; } }
                 }
                 if (!lastFixture && finishedData && finishedData.length > 0) { lastFixture = finishedData[0]; }
+                
+                const lastMatchContainer = document.getElementById('home-last-match-container');
                 if (lastFixture) {
+                    // Show the container if a match exists
+                    if (lastMatchContainer) lastMatchContainer.style.display = 'block';
+                    
                     const l = lastFixture; const lastCard = document.getElementById('last-match-card'); if (lastCard) { lastCard.setAttribute('onclick', `openMatchCentre('${l.custom_id}', '${l.sofascore_id}', '${l.stats_url || ''}', '${l.highlights_url || ''}')`); }
-                    if (awaitingScore) { document.getElementById('last-fix-date').innerText = `${l.match_date} • Full Time`; document.getElementById('last-fix-teams').innerText = `${l.home_team} ${formatFullScoreText(l)} ${l.away_team}`; document.getElementById('last-fix-sub').innerText = `⏳ Awaiting final score...`; } else { document.getElementById('last-fix-date').innerText = `${l.match_date} • Full Time`; document.getElementById('last-fix-teams').innerText = `${l.home_team} ${l.home_score} - ${l.away_score} ${l.away_team}`; document.getElementById('last-fix-sub').innerText = 'Tap to view stats & predictions ➔'; }
+                    if (awaitingScore) { document.getElementById('last-fix-date').innerText = `${l.match_date} • Full Time`; document.getElementById('last-fix-teams').innerText = `${l.home_team} ${formatFullScoreText(l)} ${l.away_team}`; document.getElementById('last-fix-sub').innerText = `⏳ Awaiting final score...`; } else { document.getElementById('last-fix-date').innerText = `${l.match_date} • Full Time`; document.getElementById('last-fix-teams').innerText = `${l.home_team} ${formatFullScoreText(l)} ${l.away_team}`; document.getElementById('last-fix-sub').innerText = 'Tap to view stats & predictions ➔'; }
+                } else {
+                    // Cleanly hide the entire element if no matches have finished yet this season
+                    if (lastMatchContainer) lastMatchContainer.style.display = 'none';
                 }
             } catch (err) { console.error("Fixture Error:", err); } finally { setHomeFixtureSkeletons(false); }
         }
 
         async function fetchAllFixtures() {
             try {
-                const { data, error } = await supabaseClient.from('fixtures').select('*').order('id', { ascending: true }); if (error) throw error;
+                const { data, error } = await supabaseClient.from('fixtures').select('*').is('season', null).order('id', { ascending: true }); if (error) throw error;
                 const histCont = document.getElementById('list-history'); const lastCont = document.getElementById('list-last-match'); const upcoCont = document.getElementById('list-upcoming');
                 histCont.innerHTML = ''; lastCont.innerHTML = ''; upcoCont.innerHTML = ''; const finished = data.filter(f => f.status === 'finished'); const upcoming = data.filter(f => f.status === 'upcoming');
                 if (finished.length > 0) {
@@ -1906,7 +1928,18 @@ async function fetchLiveMufcNews() {
             const table = document.getElementById('history-standings-table'); table.innerHTML = '<tr><th>Pos</th><th>Player</th><th class="num">Pts</th></tr>';
             standings.forEach((s, i) => { table.innerHTML += `<tr><td class="rank">${i + 1}</td><td>${s.name}</td><td class="num">${s.pts}</td></tr>`; });
             const resultsList = document.getElementById('history-results-list'); resultsList.innerHTML = '';
-            if (fixtures && fixtures.length > 0) { fixtures.forEach(f => { const sofascoreUrl = f.sofascore_id ? `https://www.sofascore.com/match/${f.sofascore_id}` : null; resultsList.innerHTML += `<div class="card row-flex" style="margin-bottom:8px; ${sofascoreUrl ? 'cursor:pointer;' : ''}" ${sofascoreUrl ? `onclick="window.open('${sofascoreUrl}','_blank')"` : ''}><div><div style="font-size:11px; color:var(--text-muted); font-weight:700; margin-bottom:4px;">${f.match_date} · ${f.competition || 'Premier League'}</div><div style="font-weight:800; font-size:14px;">${f.home_team} ${formatFullScoreText(f)} ${f.away_team}</div></div>${sofascoreUrl ? '<div style="color:var(--red); font-weight:800;">›</div>' : ''}</div>`; }); } else { resultsList.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">No results found.</div>'; }
+            if (fixtures && fixtures.length > 0) { 
+    fixtures.forEach(f => { 
+        let sofascoreUrl = null;
+        if (f.sofascore_id) {
+            // Check if a full URL was provided in the database, otherwise fallback to the old format
+            sofascoreUrl = f.sofascore_id.startsWith('http') ? f.sofascore_id : `https://www.sofascore.com/match/${f.sofascore_id}`;
+        }
+        resultsList.innerHTML += `<div class="card row-flex" style="margin-bottom:8px; ${sofascoreUrl ? 'cursor:pointer;' : ''}" ${sofascoreUrl ? `onclick="window.open('${sofascoreUrl}','_blank')"` : ''}><div><div style="font-size:11px; color:var(--text-muted); font-weight:700; margin-bottom:4px;">${f.match_date} · ${f.competition || 'Premier League'}</div><div style="font-weight:800; font-size:14px;">${f.home_team} ${formatFullScoreText(f)} ${f.away_team}</div></div>${sofascoreUrl ? '<div style="color:var(--red); font-weight:800;">›</div>' : ''}</div>`; 
+    }); 
+} else { 
+    resultsList.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">No results found.</div>'; 
+}
             switchScreen('screen-history');
         }
 
