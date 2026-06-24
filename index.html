@@ -854,6 +854,22 @@
                 <select id="admin-scorer-select" class="select-input">
                     <option value="None">None</option>
                 </select>
+                <!-- Knockout Details Section -->
+                <div style="margin: 15px 0; padding: 12px; background: #f5f5f7; border-radius: 10px; border: 1px solid #e5e5ea;">
+    <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--red); margin-bottom: 10px;">Cup Fixtures Only</div>
+    
+    <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;">Score After Extra Time (AET)</div>
+    <div class="input-group" style="margin-bottom: 12px;">
+        <input type="number" id="admin-home-aet" class="score-input" placeholder="HOM AET" min="0">
+        <input type="number" id="admin-away-aet" class="score-input" placeholder="AWY AET" min="0">
+    </div>
+
+    <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;">Penalty Shootout</div>
+    <div class="input-group" style="margin-bottom: 0;">
+        <input type="number" id="admin-home-pens" class="score-input" placeholder="HOM PENS" min="0">
+        <input type="number" id="admin-away-pens" class="score-input" placeholder="AWY PENS" min="0">
+    </div>
+</div>
                 <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">Match Status</div>
                 <select id="admin-status-select" class="select-input">
                     <option value="finished">Finished</option>
@@ -1125,45 +1141,59 @@
             if (e.persisted) restoreAppSurfaceAfterReturn();
         });
 
-        function switchScreen(screenId, navOrOpts) {
-    const skipScroll = navOrOpts && typeof navOrOpts === 'object' && navOrOpts.skipScroll === true;
+        // Smart Formatter for Knockout & Standard Scores
+function formatFullScoreText(fixture) {
+    if (!fixture || fixture.home_score === null || fixture.away_score === null) return "vs";
     
-    // Check if trying to access the admin screen
-    if (screenId === 'screen-admin') {
-        // UPDATED: Allowed James and Adam alongside Matt for testing purposes
-        const allowedAdmins = ['Matt', 'James', 'Adam'];
-        
-        if (!allowedAdmins.includes(currentUser) && !masterAdminOverride) {
-            showToast("Access Denied: Admins Only");
-            return; 
-        }
-        adminLoadFixtures(); 
-        adminLoadSquadForDelete(); 
+    let finalString = `${fixture.home_score} - ${fixture.away_score}`;
+
+    // Override with AET score if it exists
+    if (fixture.home_score_aet !== null && fixture.home_score_aet !== undefined && fixture.away_score_aet !== null && fixture.away_score_aet !== undefined) {
+        finalString = `${fixture.home_score_aet} - ${fixture.away_score_aet} (AET)`;
     }
-    
-    lastActiveScreenId = screenId;
-    document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
-    const target = document.getElementById(screenId);
-    if (target) target.style.display = 'block';
-    document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-    const activeNav = document.querySelector(`.nav-item[data-screen="${screenId}"]`);
-    if (activeNav) activeNav.classList.add('active');
-    if (!skipScroll) window.scrollTo(0, 0);
-    if (screenId === 'screen-competitions' && typeof compOnScreenEnter === 'function') compOnScreenEnter();
-    if (screenId === 'screen-mystats' && typeof loadMyStats === 'function') loadMyStats();
+
+    // Append Penalty shootout results if they exist
+    if (fixture.home_pens !== null && fixture.home_pens !== undefined && fixture.away_pens !== null && fixture.away_pens !== undefined) {
+        let winnerName = fixture.home_pens > fixture.away_pens ? fixture.home_team : fixture.away_team;
+        finalString += ` • ${winnerName} win ${fixture.home_pens}-${fixture.away_pens} on pens`;
+    }
+
+    return finalString;
 }
+
+        function switchScreen(screenId, navOrOpts) {
+            const skipScroll = navOrOpts && typeof navOrOpts === 'object' && navOrOpts.skipScroll === true;
+            if (screenId === 'screen-admin') {
+                if (currentUser !== 'Matt' && !masterAdminOverride) {
+                    showToast("Access Denied: Admins Only");
+                    return; 
+                }
+                adminLoadFixtures(); 
+                adminLoadSquadForDelete(); 
+            }
+            lastActiveScreenId = screenId;
+            document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+            const target = document.getElementById(screenId);
+            if (target) target.style.display = 'block';
+            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+            const activeNav = document.querySelector(`.nav-item[data-screen="${screenId}"]`);
+            if (activeNav) activeNav.classList.add('active');
+            if (!skipScroll) window.scrollTo(0, 0);
+            if (screenId === 'screen-competitions' && typeof compOnScreenEnter === 'function') compOnScreenEnter();
+            if (screenId === 'screen-mystats' && typeof loadMyStats === 'function') loadMyStats();
+        }
 
         function openCompetitionsNav() { window.compPendingFocus = null; switchScreen('screen-competitions'); }
         function openCompetitionsFromHome() { window.compPendingFocus = 'pl'; switchScreen('screen-competitions'); }
         function openMyStats() { switchScreen('screen-mystats'); }
 
         const SOFA_EMBED = {
-            pl: { title: 'Premier League', src: 'https://widgets.sofascore.com/embed/tournament/1/season/76986/standings/Premier%20League%2025%2F26?widgetTitle=Premier%20League%2025%2F26&showCompetitionLogo=true', h: 1123, foot: 'Standings provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/england/premier-league/17#id:76986">Sofascore</a>' },
+            pl: { title: 'Premier League', src: 'https://widgets.sofascore.com/embed/tournament/1/season/96668/standings/Premier%20League%2026%2F27?widgetTitle=Premier%20League%2026%2F27&showCompetitionLogo=true', h: 1123, foot: 'Standings provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/england/premier-league/17#id:96668">Sofascore</a>' },
             uclLg: { src: 'https://widgets.sofascore.com/embed/tournament/138314/season/76953/standings/UEFA%20Champions%20League%2025%2F26?widgetTitle=UEFA%20Champions%20League%2025%2F26&showCompetitionLogo=true', h: 1763 },
             uclKo: { src: 'https://widgets.sofascore.com/embed/unique-tournament/7/season/76953/cuptree/10850333?widgetTitle=UEFA%20Champions%20League%2025%2F26%2C%20Knockout%20stage&showCompetitionLogo=true&widgetTheme=light', h: 872 },
             fa: { title: 'FA Cup', src: 'https://widgets.sofascore.com/embed/unique-tournament/19/season/82557/cuptree/10848004?widgetTitle=FA%20Cup%2025%2F26&showCompetitionLogo=true&widgetTheme=light', h: 872, foot: 'Cup tree provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/england/fa-cup/19#id:82557">Sofascore</a>' },
             efl: { title: 'EFL Cup', src: 'https://widgets.sofascore.com/embed/unique-tournament/21/season/77500/cuptree/10823514?widgetTitle=EFL%20Cup%2025%2F26&showCompetitionLogo=true&widgetTheme=light', h: 872, foot: 'Cup tree provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/england/efl-cup/21#id:77500">Sofascore</a>' },
-            wcKo: { src: 'https://widgets.sofascore.com/embed/unique-tournament/16/season/58210/cuptree/10560975?widgetTitle=Knockout%20stage&showCompetitionLogo=true&widgetTheme=light', h: 872 }
+            wcKo: { src: 'https://widgets.sofascore.com/embed/unique-tournament/16/season/58210/cuptree/10560975?widgetTitle=Knockout%20stage&showCompetitionLogo=true&widgetTheme=light', h: 950 }
         };
 
         const WC_GROUP_EMBEDS = [
@@ -1454,7 +1484,7 @@
                 if (!lastFixture && finishedData && finishedData.length > 0) { lastFixture = finishedData[0]; }
                 if (lastFixture) {
                     const l = lastFixture; const lastCard = document.getElementById('last-match-card'); if (lastCard) { lastCard.setAttribute('onclick', `openMatchCentre('${l.custom_id}', '${l.sofascore_id}', '${l.stats_url || ''}', '${l.highlights_url || ''}')`); }
-                    if (awaitingScore) { document.getElementById('last-fix-date').innerText = `${l.match_date} • Full Time`; document.getElementById('last-fix-teams').innerText = `${l.home_team} vs ${l.away_team}`; document.getElementById('last-fix-sub').innerText = `⏳ Awaiting final score...`; } else { document.getElementById('last-fix-date').innerText = `${l.match_date} • Full Time`; document.getElementById('last-fix-teams').innerText = `${l.home_team} ${l.home_score} - ${l.away_score} ${l.away_team}`; document.getElementById('last-fix-sub').innerText = 'Tap to view stats & predictions ➔'; }
+                    if (awaitingScore) { document.getElementById('last-fix-date').innerText = `${l.match_date} • Full Time`; document.getElementById('last-fix-teams').innerText = `${l.home_team} ${formatFullScoreText(l)} ${l.away_team}`; document.getElementById('last-fix-sub').innerText = `⏳ Awaiting final score...`; } else { document.getElementById('last-fix-date').innerText = `${l.match_date} • Full Time`; document.getElementById('last-fix-teams').innerText = `${l.home_team} ${l.home_score} - ${l.away_score} ${l.away_team}`; document.getElementById('last-fix-sub').innerText = 'Tap to view stats & predictions ➔'; }
                 }
             } catch (err) { console.error("Fixture Error:", err); } finally { setHomeFixtureSkeletons(false); }
         }
@@ -1466,8 +1496,8 @@
                 histCont.innerHTML = ''; lastCont.innerHTML = ''; upcoCont.innerHTML = ''; const finished = data.filter(f => f.status === 'finished'); const upcoming = data.filter(f => f.status === 'upcoming');
                 if (finished.length > 0) {
                     const last = finished[finished.length - 1];
-                    lastCont.innerHTML = `<div class="card row-flex" onclick="openMatchCentre('${last.custom_id}', '${last.sofascore_id}', '${last.stats_url || ''}', '${last.highlights_url || ''}')"><div><div class="fix-date">${last.match_date}</div><div class="fix-teams">${last.home_team} ${last.home_score} - ${last.away_score} ${last.away_team}</div></div><div style="font-weight: 800; color: var(--red);">➔</div></div>`;
-                    finished.slice(0, -1).forEach(f => { histCont.innerHTML += `<div class="card row-flex" style="border-left: 4px solid #8e8e93; opacity: 0.8; margin-bottom: 8px; padding: 12px 20px;" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')"><div><div class="fix-date" style="font-size: 10px;">${f.match_date}</div><div class="fix-teams" style="font-size: 14px;">${f.home_team} ${f.home_score}-${f.away_score} ${f.away_team}</div></div><div style="font-weight: 800; color: var(--red);">➔</div></div>`; });
+                    lastCont.innerHTML = `<div class="card row-flex" onclick="openMatchCentre('${last.custom_id}', '${last.sofascore_id}', '${last.stats_url || ''}', '${last.highlights_url || ''}')"><div><div class="fix-date">${last.match_date}</div><div class="fix-teams">${last.home_team} ${formatFullScoreText(last)} ${last.away_team}</div></div><div style="font-weight: 800; color: var(--red);">➔</div></div>`;
+                    finished.slice(0, -1).forEach(f => { histCont.innerHTML += `<div class="card row-flex" style="border-left: 4px solid #8e8e93; opacity: 0.8; margin-bottom: 8px; padding: 12px 20px;" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')"><div><div class="fix-date" style="font-size: 10px;">${f.match_date}</div><div class="fix-teams" style="font-size: 14px;">${f.home_team} ${formatFullScoreText(f)} ${f.away_team}</div></div><div style="font-weight: 800; color: var(--red);">➔</div></div>`; });
                 }
                 upcoming.forEach(f => { upcoCont.innerHTML += `<div class="card row-flex" style="border-left: 4px solid var(--red)" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')"><div><div class="fix-date">${f.match_date} • ${f.kickoff_time}</div><div class="fix-teams">${f.home_team} vs ${f.away_team}</div><div class="fix-sub">${f.competition} • ${f.stadium}</div></div><div style="font-weight: 800; color: var(--red);">➔</div></div>`; });
             } catch (err) { console.error("Fixtures List Error:", err); }
@@ -1740,12 +1770,51 @@ async function fetchLiveMufcNews() {
         }
 
         async function adminSaveResult() {
-            const customId = document.getElementById('admin-fixture-select').value; if (!customId) { showToast('Please select a fixture first.'); return; }
-            const homeScore = document.getElementById('admin-home-score').value; const awayScore = document.getElementById('admin-away-score').value; const scorer = document.getElementById('admin-scorer-select').value; const status = document.getElementById('admin-status-select').value;
-            if (homeScore === '' || awayScore === '') { showToast('Please enter a score before saving.'); return; }
-            const { error } = await supabaseClient.from('fixtures').update({ home_score: parseInt(homeScore), away_score: parseInt(awayScore), actual_scorer: scorer || null, status: status }).eq('custom_id', customId);
-            if (error) { showToast('Error saving result.'); console.error(error); } else { showToast('Result saved! ✓'); hapticSuccess(); adminLoadFixtures(); }
-        }
+    const customId = document.getElementById('admin-fixture-select').value; 
+    if (!customId) { showToast('Please select a fixture first.'); return; }
+    
+    // Standard 90-minute inputs
+    const homeScore = document.getElementById('admin-home-score').value; 
+    const awayScore = document.getElementById('admin-away-score').value; 
+    const scorer = document.getElementById('admin-scorer-select').value; 
+    const status = document.getElementById('admin-status-select').value;
+    
+    // Knockout inputs
+    const homeAet = document.getElementById('admin-home-aet').value;
+    const awayAet = document.getElementById('admin-away-aet').value;
+    const homePens = document.getElementById('admin-home-pens').value;
+    const awayPens = document.getElementById('admin-away-pens').value;
+
+    if (homeScore === '' || awayScore === '') { showToast('Please enter the 90-min score before saving.'); return; }
+    
+    const { error } = await supabaseClient.from('fixtures').update({ 
+        home_score: parseInt(homeScore), 
+        away_score: parseInt(awayScore), 
+        actual_scorer: scorer || null, 
+        status: status,
+        home_score_aet: homeAet !== '' ? parseInt(homeAet) : null,
+        away_score_aet: awayAet !== '' ? parseInt(awayAet) : null,
+        home_pens: homePens !== '' ? parseInt(homePens) : null,
+        away_pens: awayPens !== '' ? parseInt(awayPens) : null
+    }).eq('custom_id', customId);
+    
+    if (error) { 
+        showToast('Error saving result.'); 
+        console.error(error); 
+    } else { 
+        showToast('Result saved! ✓'); 
+        hapticSuccess(); 
+        adminLoadFixtures(); 
+        
+        // Clear inputs after successful save
+        document.getElementById('admin-home-score').value = '';
+        document.getElementById('admin-away-score').value = '';
+        document.getElementById('admin-home-aet').value = '';
+        document.getElementById('admin-away-aet').value = '';
+        document.getElementById('admin-home-pens').value = '';
+        document.getElementById('admin-away-pens').value = '';
+    }
+}
 
         function loadMatchStats(fixture) {
             const container = document.getElementById('stats-container'); if (!container) return;
@@ -1806,6 +1875,26 @@ async function fetchLiveMufcNews() {
             container.innerHTML = ''; data.forEach(season => { container.innerHTML += `<div class="card row-flex" style="cursor:pointer; border-left:4px solid var(--red);" onclick="openHistoryScreen('${season.season_label}')"><div><div style="font-weight:800; font-size:15px;">${season.season_label}</div><div style="font-size:11px; color:var(--text-muted); margin-top:3px;">Winner: ${season.winner || '—'} · ${season.winner_points || 0} pts</div></div><div style="font-weight:800; color:var(--red);">›</div></div>`; });
         }
 
+    function formatFullScoreText(fixture) {
+        if (!fixture || fixture.home_score === null || fixture.away_score === null) return "vs";
+    
+        let baseScore = `${fixture.home_score} - ${fixture.away_score}`;
+        let finalString = baseScore;
+
+        // Check if there was an Extra Time score
+        if (fixture.home_score_aet !== null && fixture.away_score_aet !== null) {
+            finalString = `${fixture.home_score_aet} - ${fixture.away_score_aet} (AET)`;
+    }
+
+        // Check if it went to penalties
+        if (fixture.home_pens !== null && fixture.away_pens !== null) {
+            let winnerName = fixture.home_pens > fixture.away_pens ? fixture.home_team : fixture.away_team;
+            finalString += ` • ${winnerName} win ${fixture.home_pens}-${fixture.away_pens} on pens`;
+    }
+
+    return finalString;
+}
+
         async function openHistoryScreen(seasonLabel) {
             document.getElementById('history-screen-title').textContent = `${seasonLabel} Season`;
             const [fixturesRes, predsRes] = await Promise.all([supabaseClient.from('fixtures').select('*').eq('season', seasonLabel).eq('status', 'finished').order('id', { ascending: true }), supabaseClient.from('predictions').select('user_name, points_won').eq('season', seasonLabel)]);
@@ -1816,7 +1905,7 @@ async function fetchLiveMufcNews() {
             const table = document.getElementById('history-standings-table'); table.innerHTML = '<tr><th>Pos</th><th>Player</th><th class="num">Pts</th></tr>';
             standings.forEach((s, i) => { table.innerHTML += `<tr><td class="rank">${i + 1}</td><td>${s.name}</td><td class="num">${s.pts}</td></tr>`; });
             const resultsList = document.getElementById('history-results-list'); resultsList.innerHTML = '';
-            if (fixtures && fixtures.length > 0) { fixtures.forEach(f => { const sofascoreUrl = f.sofascore_id ? `https://www.sofascore.com/match/${f.sofascore_id}` : null; resultsList.innerHTML += `<div class="card row-flex" style="margin-bottom:8px; ${sofascoreUrl ? 'cursor:pointer;' : ''}" ${sofascoreUrl ? `onclick="window.open('${sofascoreUrl}','_blank')"` : ''}><div><div style="font-size:11px; color:var(--text-muted); font-weight:700; margin-bottom:4px;">${f.match_date} · ${f.competition || 'Premier League'}</div><div style="font-weight:800; font-size:14px;">${f.home_team} ${f.home_score} – ${f.away_score} ${f.away_team}</div></div>${sofascoreUrl ? '<div style="color:var(--red); font-weight:800;">›</div>' : ''}</div>`; }); } else { resultsList.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">No results found.</div>'; }
+            if (fixtures && fixtures.length > 0) { fixtures.forEach(f => { const sofascoreUrl = f.sofascore_id ? `https://www.sofascore.com/match/${f.sofascore_id}` : null; resultsList.innerHTML += `<div class="card row-flex" style="margin-bottom:8px; ${sofascoreUrl ? 'cursor:pointer;' : ''}" ${sofascoreUrl ? `onclick="window.open('${sofascoreUrl}','_blank')"` : ''}><div><div style="font-size:11px; color:var(--text-muted); font-weight:700; margin-bottom:4px;">${f.match_date} · ${f.competition || 'Premier League'}</div><div style="font-weight:800; font-size:14px;">${f.home_team} ${formatFullScoreText(f)} ${f.away_team}</div></div>${sofascoreUrl ? '<div style="color:var(--red); font-weight:800;">›</div>' : ''}</div>`; }); } else { resultsList.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">No results found.</div>'; }
             switchScreen('screen-history');
         }
 
