@@ -1932,10 +1932,18 @@ async function fetchLiveMufcNews() {
     fixtures.forEach(f => { 
         let sofascoreUrl = null;
         if (f.sofascore_id) {
-            // Check if a full URL was provided in the database, otherwise fallback to the old format
             sofascoreUrl = f.sofascore_id.startsWith('http') ? f.sofascore_id : `https://www.sofascore.com/match/${f.sofascore_id}`;
         }
-        resultsList.innerHTML += `<div class="card row-flex" style="margin-bottom:8px; ${sofascoreUrl ? 'cursor:pointer;' : ''}" ${sofascoreUrl ? `onclick="window.open('${sofascoreUrl}','_blank')"` : ''}><div><div style="font-size:11px; color:var(--text-muted); font-weight:700; margin-bottom:4px;">${f.match_date} · ${f.competition || 'Premier League'}</div><div style="font-weight:800; font-size:14px;">${f.home_team} ${formatFullScoreText(f)} ${f.away_team}</div></div>${sofascoreUrl ? '<div style="color:var(--red); font-weight:800;">›</div>' : ''}</div>`; 
+        
+        // Build the inner text of the card
+        const innerHtml = `<div><div style="font-size:11px; color:var(--text-muted); font-weight:700; margin-bottom:4px;">${f.match_date} · ${f.competition || 'Premier League'}</div><div style="font-weight:800; font-size:14px;">${f.home_team} ${formatFullScoreText(f)} ${f.away_team}</div></div>${sofascoreUrl ? '<div style="color:var(--red); font-weight:800;">›</div>' : ''}`;
+        
+        // Wrap it in a clean <a> tag if a link exists, otherwise keep it as a standard div
+        if (sofascoreUrl) {
+            resultsList.innerHTML += `<a href="${sofascoreUrl}" target="_blank" rel="noopener noreferrer" class="card row-flex" style="margin-bottom:8px; display:flex; text-decoration:none; color:inherit; -webkit-tap-highlight-color:transparent;">${innerHtml}</a>`;
+        } else {
+            resultsList.innerHTML += `<div class="card row-flex" style="margin-bottom:8px;">${innerHtml}</div>`;
+        }
     }); 
 } else { 
     resultsList.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">No results found.</div>'; 
