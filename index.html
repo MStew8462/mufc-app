@@ -1506,10 +1506,11 @@ function formatFullScoreText(fixture) {
         async function refreshUsers() {
             const nameDisplay = document.getElementById('prof-name'); if (nameDisplay) nameDisplay.innerText = currentUser;
             setLeaderboardSkeleton(true);
-            const { data: preds } = await supabaseClient.from('predictions').select('user_name, points_won');
+            const { data: preds } = await supabaseClient.from('predictions').select('user_name, points_won').is('season', null);
             const table = document.getElementById('leaderboard-table');
             if (!preds) { if (table) { table.innerHTML = '<tr><th>Pos</th><th>User</th><th class="num">Pts</th></tr><tr><td colspan="3" style="text-align:center;padding:16px;color:#888;">No data</td></tr>'; } return; }
-            const totals = {}; preds.forEach(p => { if (!totals[p.user_name]) totals[p.user_name] = 0; totals[p.user_name] += (parseInt(p.points_won) || 0); });
+            const totals = { 'Matt': 0, 'James': 0, 'Adam': 0 }; 
+preds.forEach(p => { if (totals[p.user_name] === undefined) totals[p.user_name] = 0; totals[p.user_name] += (parseInt(p.points_won) || 0); });
             for (const [userName, pts] of Object.entries(totals)) { await supabaseClient.from('leaderboard').update({ total_points: pts }).eq('user_name', userName); }
             const sorted = Object.entries(totals).map(([user_name, total_points]) => ({ user_name, total_points })).sort((a, b) => b.total_points - a.total_points);
             if (table) {
@@ -1917,7 +1918,8 @@ async function fetchLiveMufcNews() {
             // Calculate current standings
             const { data: preds } = await supabaseClient
                 .from('predictions')
-                .select('user_name, points_won');
+                .select('user_name, points_won')
+                .is('season', null);
 
             const totals = {};
             if (preds) {
