@@ -186,7 +186,14 @@
         .slick-table tr:last-child td { border-bottom: none; }
         .slick-table .rank { color: var(--text-muted); font-weight: 700; width: 22px; }
         .slick-table .num { text-align: right; font-weight: 800;}
+        #leaderboard-table tr.rank-1 td { background-color: #fff9ed; }
+        #leaderboard-table tr.rank-1 .rank { color: #c9a227; }
+        #leaderboard-table tr.rank-2 td { background-color: #f6f6f8; }
+        #leaderboard-table tr.rank-2 .rank { color: #8e8e93; }
+        #leaderboard-table tr.rank-3 td { background-color: #faf7f3; }
+        #leaderboard-table tr.rank-3 .rank { color: #a67c52; }
         .highlight-row td { font-weight: 800 !important; color: var(--red) !important; }
+        .highlight-row .num { color: var(--red) !important; }
 
         /* ── Polish: skeletons, motion, pull-to-refresh ─────────────────── */
         @keyframes sk-shimmer {
@@ -1539,7 +1546,9 @@ preds.forEach(p => { if (totals[p.user_name] === undefined) totals[p.user_name] 
                 table.innerHTML = '<tr><th>Pos</th><th>User</th><th class="num">Pts</th></tr>';
                 sorted.forEach((user, index) => {
                     const isMe = user.user_name === currentUser;
-                    table.innerHTML += `<tr class="${isMe ? 'highlight-row' : ''}"><td class="rank">${index + 1}</td><td>${user.user_name}</td><td class="num">${user.total_points}</td></tr>`;
+                    const rankCls = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
+                    const rowCls = [rankCls, isMe ? 'highlight-row' : ''].filter(Boolean).join(' ');
+                    table.innerHTML += `<tr class="${rowCls}"><td class="rank">${index + 1}</td><td>${user.user_name}</td><td class="num">${user.total_points}</td></tr>`;
                     if (isMe) { document.getElementById('prof-points').innerText = user.total_points; document.getElementById('prof-rank').innerText = `Rank ${index + 1}`; }
                 });
             }
@@ -1863,10 +1872,27 @@ async function fetchLiveMufcNews() {
         }
 
         async function adminLoadSquadForDelete() {
-            const { data } = await supabaseClient.from('squad').select('id, name, position').order('name'); if (!data) return;
-            const sel = document.getElementById('admin-delete-player-select'); if (!sel) return; sel.innerHTML = '<option value="">-- Select Player --</option>';
-            data.forEach(p => { const opt = document.createElement('option'); opt.value = p.id; opt.textContent = `${p.name} (${p.position})`; sel.appendChild(opt); });
-        }
+    const sel = document.getElementById('admin-delete-player-select');
+    if (!sel) return;
+
+    // Grab the data from the list we already fetched in fetchSquad()
+    // We assume fetchSquad() stored the data in a global variable called _squadPlayers
+    const players = window._squadPlayers;
+
+    if (!players || players.length === 0) {
+        sel.innerHTML = '<option value="">No players found. Try reloading.</option>';
+        return;
+    }
+
+    // Populate the dropdown using the existing data
+    sel.innerHTML = '<option value="">-- Select Player --</option>';
+    players.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.name;
+        opt.textContent = `${p.name} (${p.position})`;
+        sel.appendChild(opt);
+    });
+}
 
         async function adminAddPlayer() {
             const number = document.getElementById('admin-player-number').value; const name = document.getElementById('admin-player-name').value.trim(); const position = document.getElementById('admin-player-position').value; const nationality = document.getElementById('admin-player-nationality')?.value.trim() || ''; const dob = document.getElementById('admin-player-dob')?.value || ''; const statsUrl = document.getElementById('admin-player-stats-url').value.trim();
@@ -1878,7 +1904,7 @@ async function fetchLiveMufcNews() {
         async function adminDeletePlayer() {
             const id = document.getElementById('admin-delete-player-select').value; if (!id) { showToast('Please select a player first.'); return; }
             const name = document.getElementById('admin-delete-player-select').selectedOptions[0].text; if (!confirm(`Delete ${name}?`)) return;
-            const { error } = await supabaseClient.from('squad').delete().eq('id', id);
+            const { error } = await supabaseClient.from('squad').delete().eq('name', id);
             if (error) { showToast('Error deleting player.'); console.error(error); } else { showToast(`${name} deleted.`); fetchSquad(); adminLoadSquadForDelete(); }
         }
 
