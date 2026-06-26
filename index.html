@@ -1136,6 +1136,34 @@
     
     <script>
         // Force the news ticker AND navigation tabs to stay out of the way of the prediction modal
+        const teamBadgeMap = {
+    "Arsenal": "arsenal",
+    "Aston Villa": "astonvilla",
+    "Bournemouth": "bournemouth",
+    "Brentford": "brentford",
+    "Brighton": "brighton",
+    "Chelsea": "chelsea",
+    "Coventry": "coventry",
+    "Crystal Palace": "crystalpalace",
+    "Everton": "everton",
+    "Fulham": "fulham",
+    "Hull City": "hull",
+    "Ipswich Town": "ipswich",
+    "Leeds United": "leeds",
+    "Liverpool": "liverpool",
+    "Manchester City": "mancity",
+    "Man Utd": "manutd",
+    "Newcastle": "newcastle",
+    "Notts Forest": "nottmforest",
+    "Sunderland": "sunderland",
+    "Tottenham": "tottenham"
+};
+
+function getTeamBadgeUrl(teamName) {
+    const filename = teamBadgeMap[teamName];
+    if (!filename) return 'https://upload.wikimedia.org/wikipedia/en/thumb/7/7a/Manchester_United_FC_crest.svg/100px-Manchester_United_FC_crest.svg.png';
+    return `https://svnbsbrlnjcimoaxtajm.supabase.co/storage/v1/object/public/videos/badges/${filename}.png`;
+}
         const modalObserver = new MutationObserver(() => {
             const modal = document.getElementById('predModal');
             const ticker = document.getElementById('app-news-ticker');
@@ -1516,7 +1544,15 @@ const { data: finishedData } = await supabaseClient.from('fixtures').select('*')
                 if (displayFixture) {
                     const m = displayFixture; currentMatchId = m.custom_id || m.id;
                     const nextCard = document.getElementById('next-match-card'); nextCard.setAttribute('onclick', `openMatchCentre('${currentMatchId}', '${m.sofascore_id}', '${m.stats_url || ''}', '${m.highlights_url || ''}')`);
-                    document.getElementById('home-fix-date').innerText = `Next Fixture • ${m.match_date}`; document.getElementById('home-fix-teams').innerText = `${m.home_team} vs ${m.away_team}`; currentMatchLabel = `${m.home_team} vs ${m.away_team}`; document.getElementById('home-fix-sub').innerText = `${m.stadium} • ${m.kickoff_time}`;
+                    document.getElementById('home-fix-date').innerText = `Next Fixture • ${m.match_date}`; document.getElementById('home-fix-teams').innerHTML = `
+    <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+        <img src="${getTeamBadgeUrl(m.home_team)}" style="width:24px; height:24px; object-fit:contain;">
+        <span>${m.home_team}</span>
+        <span style="font-size: 14px; color: var(--text-muted); margin: 0 4px;">vs</span>
+        <span>${m.away_team}</span>
+        <img src="${getTeamBadgeUrl(m.away_team)}" style="width:24px; height:24px; object-fit:contain;">
+    </div>
+`; document.getElementById('home-fix-sub').innerText = `${m.stadium} • ${m.kickoff_time}`;
                     const ko = parseKickoffDate(m.match_date, m.kickoff_time); updatePredictionLockState(ko);
                 } else {
                     // No upcoming fixtures — season complete
@@ -1565,11 +1601,57 @@ const { data: finishedData } = await supabaseClient.from('fixtures').select('*')
                 const histCont = document.getElementById('list-history'); const lastCont = document.getElementById('list-last-match'); const upcoCont = document.getElementById('list-upcoming');
                 histCont.innerHTML = ''; lastCont.innerHTML = ''; upcoCont.innerHTML = ''; const finished = data.filter(f => f.status === 'finished'); const upcoming = data.filter(f => f.status === 'upcoming');
                 if (finished.length > 0) {
-                    const last = finished[finished.length - 1];
-                    lastCont.innerHTML = `<div class="card row-flex" onclick="openMatchCentre('${last.custom_id}', '${last.sofascore_id}', '${last.stats_url || ''}', '${last.highlights_url || ''}')"><div><div class="fix-date">${last.match_date}</div><div class="fix-teams">${last.home_team} ${formatFullScoreText(last)} ${last.away_team}</div></div><div style="font-weight: 800; color: var(--red);">➔</div></div>`;
-                    finished.slice(0, -1).forEach(f => { histCont.innerHTML += `<div class="card row-flex" style="border-left: 4px solid #8e8e93; opacity: 0.8; margin-bottom: 8px; padding: 12px 20px;" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')"><div><div class="fix-date" style="font-size: 10px;">${f.match_date}</div><div class="fix-teams" style="font-size: 14px;">${f.home_team} ${formatFullScoreText(f)} ${f.away_team}</div></div><div style="font-weight: 800; color: var(--red);">➔</div></div>`; });
+    const last = finished[finished.length - 1];
+    const homeLogo = getTeamBadgeUrl(last.home_team);
+    const awayLogo = getTeamBadgeUrl(last.away_team);
+    
+    lastCont.innerHTML = `
+        <div class="card row-flex" onclick="openMatchCentre('${last.custom_id}', '${last.sofascore_id}', '${last.stats_url || ''}', '${last.highlights_url || ''}')" style="padding: 12px 20px; align-items: center;">
+            <div style="flex: 1;">
+                <div class="fix-date">${last.match_date}</div>
+                <div class="fix-teams" style="display:flex; align-items:center; justify-content:center; gap:8px; margin: 8px 0;">
+                    <img src="${homeLogo}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
+                    <span style="font-weight: 800;">${last.home_team}</span>
+                    <span style="font-size: 13px; color: var(--red); font-weight: 800;">${formatFullScoreText(last)}</span>
+                    <span style="font-weight: 800;">${last.away_team}</span>
+                    <img src="${awayLogo}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
+                </div>
+            </div>
+            <div style="font-weight: 800; color: var(--red);">➔</div>
+        </div>
+    `;
+                    finished.slice(0, -1).forEach(f => { histCont.innerHTML += `<div class="card row-flex" style="border-left: 4px solid #8e8e93; opacity: 0.8; margin-bottom: 8px; padding: 12px 20px;" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')"><div><div class="fix-date" style="font-size: 10px;">${f.match_date}</div><div class="fix-teams" style="display:flex; align-items:center; justify-content:center; gap: 8px;">
+    <img src="${getTeamBadgeUrl(f.home_team)}" style="width:20px; height:20px; object-fit:contain;">
+    <span>${f.home_team}</span>
+    <span style="font-size: 12px; color: var(--text-muted); margin: 0 4px;">vs</span>
+    <span>${f.away_team}</span>
+    <img src="${getTeamBadgeUrl(f.away_team)}" style="width:20px; height:20px; object-fit:contain;">
+</div></div><div style="font-weight: 800; color: var(--red);">➔</div></div>`; });
                 }
-                upcoming.forEach(f => { upcoCont.innerHTML += `<div class="card row-flex" style="border-left: 4px solid var(--red)" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')"><div><div class="fix-date">${f.match_date} • ${f.kickoff_time}</div><div class="fix-teams">${f.home_team} vs ${f.away_team}</div><div class="fix-sub">${f.competition} • ${f.stadium}</div></div><div style="font-weight: 800; color: var(--red);">➔</div></div>`; });
+                upcoming.forEach(f => {
+    // We fetch the URLs safely
+    const homeLogo = getTeamBadgeUrl(f.home_team);
+    const awayLogo = getTeamBadgeUrl(f.away_team);
+
+    upcoCont.innerHTML += `
+        <div class="card row-flex" style="border-left: 4px solid var(--red); padding: 12px 20px; margin-bottom: 8px;" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')">
+            <div style="flex: 1;">
+                <div class="fix-date">${f.match_date} • ${f.kickoff_time}</div>
+                
+                <div class="fix-teams" style="display:flex; align-items:center; justify-content:center; gap:8px; margin: 8px 0;">
+                    <img src="${homeLogo}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
+                    <span style="font-weight: 800;">${f.home_team}</span>
+                    <span style="font-size: 12px; color: var(--text-muted);">vs</span>
+                    <span style="font-weight: 800;">${f.away_team}</span>
+                    <img src="${awayLogo}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
+                </div>
+                
+                <div class="fix-sub">${f.competition} • ${f.stadium}</div>
+            </div>
+            <div style="font-weight: 800; color: var(--red);">➔</div>
+        </div>
+    `;
+});
             } catch (err) { console.error("Fixtures List Error:", err); }
         }
 
