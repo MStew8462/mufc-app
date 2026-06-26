@@ -1212,7 +1212,9 @@ function formatFullScoreText(fixture) {
 
         function switchScreen(screenId, navOrOpts) {
             const skipScroll = navOrOpts && typeof navOrOpts === 'object' && navOrOpts.skipScroll === true;
-            
+            if (screenId === 'screen-media') {
+        fetchRedditTransferWire();
+    }
             if (screenId === 'screen-admin') {
                 // ⚠️ SECURITY CHECK DISABLED FOR TESTING
                 // The block below is "commented out" so any user can access Admin
