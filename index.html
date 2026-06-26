@@ -13,6 +13,45 @@
         body { margin: 0; padding: 0; background-color: var(--bg); font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; max-width: 430px; margin: 0 auto; position: relative; padding-bottom: 100px; box-sizing: border-box; }
         * { box-sizing: border-box; }
 
+.tweet-card {
+    background: #f2f2f7; 
+    border: 1px solid #e5e5ea;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: block;
+    text-decoration: none;
+}
+
+.tweet-header {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 8px; /* Adds space before the body text */
+}
+
+.tweet-name {
+    font-weight: 800; /* Bold */
+    font-size: 11px;
+    color: #000;
+}
+
+.tweet-handle {
+    font-size: 9px; /* Small */
+    color: #8e8e93; /* Grey */
+    margin-bottom: 4px;
+}
+
+.tweet-text {
+    font-size: 11px; /* Slightly smaller than name */
+    line-height: 1.3;
+    color: #1c1c1e;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
 .comp-logo {
     width: 95px; /* Increased by ~50% from 65px */
     height: 95px;
@@ -682,11 +721,11 @@
         <span class="media-float-pill">Open</span>
     </a>
 
-<div class="media-section-title">United Stories (Only Tier 1 &amp; 2)</div>
+<div class="media-section-title">United Stories (Tier 1 sources only)</div>
     <div class="card" style="margin: 0 16px 12px 16px; padding: 16px; background: var(--card-bg); border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid #efefef;">
         <div class="fix-date" style="margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
             <span style="display: inline-block; width: 6px; height: 6px; background: #da291c; border-radius: 50%;"></span>
-            Live Community Feed
+            Live X Feed
         </div>
         <div id="reddit-transfer-mount" style="display: flex; flex-direction: column; gap: 10px;">
             <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 10px 0;">Loading transfer wire...</div>
@@ -2116,47 +2155,39 @@ async function fetchLiveMufcNews() {
             }
         }
 
-// Bulletproof cloud-connected data engine to map out r/reddevils Tier 1 & 2 transfers instantly
+// Updated engine to pull from your personal filtered RSS.app feed
 async function fetchRedditTransferWire() {
     const container = document.getElementById('reddit-transfer-mount');
     if (!container) return;
     
-    const redditRss = 'https://www.reddit.com/r/reddevils/search.rss?q=flair:%22Tier%201%22%20OR%20flair:%22Tier%202%22&restrict_sr=1&sort=new';
-    const stableEngineUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(redditRss)}&_ts=${Date.now()}`;
+    const myFilteredFeed = 'https://rss.app/feeds/xpES3R9fu4klBSTR.xml';
+    const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(myFilteredFeed)}&_ts=${Date.now()}`;
     
     try {
-        const response = await fetch(stableEngineUrl, { cache: "no-store" });
-        if (!response.ok) throw new Error('Data network rejected connection');
-        
+        const response = await fetch(proxyUrl, { cache: "no-store" });
         const data = await response.json();
         
-        if (!data || !data.items || data.items.length === 0) {
-            container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:10px 0;">No recent transfer threads found.</div>';
-            return;
-        }
-        
-        const feedEntries = data.items.slice(0, 3);
-        
         container.innerHTML = '';
-        feedEntries.forEach(item => {
-            let cleanTitle = item.title.trim();
-            if (cleanTitle.length > 90) {
-                cleanTitle = cleanTitle.substring(0, 87) + "...";
-            }
-            
+        data.items.slice(0, 3).forEach(item => {
+            // Split title at the first colon
+            const parts = item.title.split(':');
+            const author = parts[0].trim();
+            const body = parts.slice(1).join(':').trim(); // Keeps the rest of the message
+            const handle = "@" + author.replace(/\s+/g, '');
+
             container.innerHTML += `
-                <a href="${item.link}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; display:block; padding:12px; background:#f2f2f7; border-radius:10px; border-left:3px solid var(--red); -webkit-tap-highlight-color:transparent;">
-                    <div style="font-size:11px; font-weight:700; color:var(--text-main); line-height:1.45; text-transform:uppercase; letter-spacing:-0.2px;">${cleanTitle}</div>
-                    <div style="font-size:9px; font-weight:800; color:var(--red); margin-top:6px; text-transform:uppercase; letter-spacing:0.4px; display:flex; align-items:center; gap:3px;">
-                        <span>Read Community Thread</span> <span style="font-size:11px;">➔</span>
+                <a href="${item.link}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">
+                    <div class="tweet-card">
+                        <div class="tweet-header">
+                            <span class="tweet-name">${author}</span>
+                        </div>
+                        <div class="tweet-text">${body}</div>
                     </div>
                 </a>
             `;
         });
-        
     } catch (err) {
-        console.error("Reddit transfer line connection error:", err);
-        container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:10px 0;">Transfer wire updates loading...</div>';
+        console.error("Feed error:", err);
     }
 }
 
