@@ -2162,23 +2162,30 @@ async function fetchRedditTransferWire() {
     const container = document.getElementById('reddit-transfer-mount');
     if (!container) return;
     
+    // Direct URL to your XML feed
     const myFilteredFeed = 'https://rss.app/feeds/xpES3R9fu4klBSTR.xml';
-    const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(myFilteredFeed)}&_ts=${Date.now()}`;
     
     try {
-        const response = await fetch(proxyUrl, { cache: "no-store" });
-        const data = await response.json();
+        // Use 'no-cache' to ensure we get the fresh XML from RSS.app
+        const response = await fetch(myFilteredFeed, { cache: "no-store" });
+        const text = await response.text();
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(text, "application/xml");
+        const items = Array.from(xml.querySelectorAll("item")).slice(0, 3);
         
         container.innerHTML = '';
-        data.items.slice(0, 3).forEach(item => {
-            // Split title at the first colon
-            const parts = item.title.split(':');
+        
+        items.forEach(item => {
+            const title = item.querySelector("title").textContent;
+            const link = item.querySelector("link").textContent;
+            
+            // Logic to split the title
+            const parts = title.split(':');
             const author = parts[0].trim();
-            const body = parts.slice(1).join(':').trim(); // Keeps the rest of the message
-            const handle = "@" + author.replace(/\s+/g, '');
+            const body = parts.slice(1).join(':').trim();
 
             container.innerHTML += `
-                <a href="${item.link}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">
+                <a href="${link}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">
                     <div class="tweet-card">
                         <div class="tweet-header">
                             <span class="tweet-name">${author}</span>
@@ -2190,6 +2197,7 @@ async function fetchRedditTransferWire() {
         });
     } catch (err) {
         console.error("Feed error:", err);
+        container.innerHTML = '<div style="padding:10px; text-align:center; font-size:12px;">Feed sync issue.</div>';
     }
 }
 
