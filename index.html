@@ -683,19 +683,18 @@
         <span class="media-float-pill">Open</span>
     </a>
 
-<div class="media-section-title">MEN Latest News </div>
-    <div class="card" style="margin: 0 16px 12px 16px; padding: 16px; background: var(--card-bg); border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid #efefef;">
-        <div class="fix-date" style="margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
-            <span style="display: inline-block; width: 6px; height: 6px; background: #da291c; border-radius: 50%;"></span>
-            24h Feed
-        </div>
-        <div id="reddit-transfer-mount" style="display: flex; flex-direction: column; gap: 10px;">
-            <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 10px 0;">Loading transfer wire...</div>
-        </div>
-    </div>
+<div class="media-section-title">Sky Sports Latest News</div>
+<div style="margin: 0 16px 16px 16px; height: 400px; overflow: hidden; border-radius: 14px;">
+    <iframe 
+        src="https://rss.app/embed/v1/carousel/miXvFGaJlaO2vFyE" 
+        style="width: 100%; height: 485px; border: none; margin-top: -100px;" 
+        scrolling="no"
+        frameborder="0">
+    </iframe>
+</div>
 
     <!-- UNITED SOCIALS -->
-    <div class="media-section-title">United Socials</div>
+    <div class="media-section-title" style="margin-top: -20px;">United Socials</div>
     <div class="media-social-grid">
         <a class="media-social-btn" href="https://twitter.com/ManUtd" target="_blank" rel="noopener noreferrer">
             <img src="https://cdn-icons-png.flaticon.com/512/3256/3256013.png" alt="X">
@@ -1042,7 +1041,7 @@
 
     <div id="app-news-ticker" style="position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%); width: calc(100% - 24px); max-width: 406px; background: #111112; color: #ffffff; height: 36px; display: flex; align-items: center; font-size: 10px; font-weight: 700; border: 1px solid #da291c; border-radius: 12px; z-index: 10000; overflow: hidden; font-family: 'Inter', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
         <div style="background: var(--red); color: white; padding: 0 12px; height: 100%; display: flex; align-items: center; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; z-index: 10002; box-shadow: 4px 0 8px rgba(0,0,0,0.5); font-size: 9px; white-space: nowrap;">
-            Latest News
+            Club News
         </div>
         
         <div class="ticker-window-wrapper" style="flex: 1; min-width: 0; height: 100%; overflow: hidden; position: relative; display: flex; align-items: center; background: #111112; z-index: 10001;">
@@ -1202,9 +1201,7 @@ function formatFullScoreText(fixture) {
 
         function switchScreen(screenId, navOrOpts) {
             const skipScroll = navOrOpts && typeof navOrOpts === 'object' && navOrOpts.skipScroll === true;
-            if (screenId === 'screen-media') {
-        fetchRedditTransferWire();
-    }
+            
             if (screenId === 'screen-admin') {
                 // ⚠️ SECURITY CHECK DISABLED FOR TESTING
                 // The block below is "commented out" so any user can access Admin
@@ -1789,7 +1786,7 @@ async function fetchLiveMufcNews() {
     if (!marquee) return;
     
     // Sky Sports Manchester United RSS - High reliability, no rumours, proxy-friendly
-    const skyRssUrl = 'https://www.skysports.com/rss/11667';
+    const skyRssUrl = 'https://www.manutd.com/Feeds/NewsSecondRSSFeed';
     
     // rss2json converts the raw XML into a clean, easy-to-read Javascript object
     const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(skyRssUrl)}&_nocache=${Date.now()}`;
@@ -2201,54 +2198,11 @@ async function fetchLiveMufcNews() {
             }
         }
 
-// Updated engine to pull from your personal filtered RSS.app feed
-async function fetchRedditTransferWire() {
-    const container = document.getElementById('reddit-transfer-mount');
-    if (!container) return;
-    
-    // Direct URL to your XML feed
-    const myFilteredFeed = 'https://rss.app/feeds/oYTcfySKCtQgqGFz.xml';
-    
-    try {
-        // Use 'no-cache' to ensure we get the fresh XML from RSS.app
-        const response = await fetch(myFilteredFeed, { cache: "no-store" });
-        const text = await response.text();
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(text, "application/xml");
-        const items = Array.from(xml.querySelectorAll("item")).slice(0, 3);
-        
-        container.innerHTML = '';
-        
-        items.forEach(item => {
-            const title = item.querySelector("title").textContent;
-            const link = item.querySelector("link").textContent;
-            
-            // Logic to split the title
-            const parts = title.split(':');
-            const author = parts[0].trim();
-            const body = parts.slice(1).join(':').trim();
-
-            container.innerHTML += `
-    <a href="${link}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; color:inherit;">
-        <div class="news-item" style="padding: 12px 0; border-bottom: 1px solid #eee;">
-            <div style="font-size: 0.8rem; color: #888; margin-bottom: 4px;">${author}</div>
-            <div style="font-weight: 500; font-size: 0.95rem;">${body}</div>
-        </div>
-    </a>
-`;
-        });
-    } catch (err) {
-        console.error("Feed error:", err);
-        container.innerHTML = '<div style="padding:10px; text-align:center; font-size:12px;">Feed sync issue.</div>';
-    }
-}
 
 // Unified initializer hook to cleanly run app boot cycles and fire media wires
 async function initAppWithMediaWires() {
     await initApp();
-    if (currentUser) {
-        fetchRedditTransferWire();
-    }
+    // We removed fetchRedditTransferWire() from here
 }
 
 window.addEventListener('load', initAppWithMediaWires);
