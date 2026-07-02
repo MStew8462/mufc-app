@@ -2200,35 +2200,43 @@ async function fetchLiveMufcNews() {
             }
         }
 
-async function fetchOfficialNews() {
+async function fetchRedditTransferWire() {
+
     const container = document.getElementById('reddit-transfer-mount');
+
     if (!container) return;
+
     
-    // Your official RSS feed URL
-    const officialFeed = 'https://rss.app/feeds/JwD6v5hO5LWkYCJ8.xml';
+
+    // Direct URL to your XML feed
+
+    const myFilteredFeed = 'https://rss.app/feeds/JwD6v5hO5LWkYCJ8.xml';
+
     
+
     try {
-        const response = await fetch(officialFeed, { cache: "no-store" });
+
+        // Use 'no-cache' to ensure we get the fresh XML from RSS.app
+
+        const response = await fetch(myFilteredFeed, { cache: "no-store" });
+
         const text = await response.text();
+
         const parser = new DOMParser();
+
         const xml = parser.parseFromString(text, "application/xml");
-        const items = Array.from(xml.querySelectorAll("item")).slice(0, 5);
+
+        const items = Array.from(xml.querySelectorAll("item")).slice(0, 3);
+
         
-        container.innerHTML = '';
-        
-        items.forEach(item => {
-            const title = item.querySelector("title").textContent;
-            const link = item.querySelector("link").textContent;
-            
-            // Clean, professional layout for Official News
-            container.innerHTML += `
-                <a href="${link}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; color:inherit;">
-                    <div class="news-item" style="padding: 14px 0; border-bottom: 1px solid #e1e1e1;">
-                        <div style="font-weight: 600; font-size: 0.95rem; line-height: 1.4;">${title}</div>
-                        <div style="font-size: 0.75rem; color: #da291c; margin-top: 6px; text-transform: uppercase; font-weight: bold;">Official Club News</div>
-                    </div>
-                </a>
-            `;
+        container.innerHTML += `
+    <a href="${link}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; color:inherit;">
+        <div class="news-item" style="padding: 12px 0; border-bottom: 1px solid #eee;">
+            <div style="font-size: 0.8rem; color: #888; margin-bottom: 4px;">${author}</div>
+            <div style="font-weight: 500; font-size: 0.95rem;">${body}</div>
+        </div>
+    </a>
+`;
         });
     } catch (err) {
         console.error("Feed error:", err);
