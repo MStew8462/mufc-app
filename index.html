@@ -764,6 +764,15 @@
         <span class="media-float-pill">Open</span>
     </a>
 
+<div class="media-section-title">United Insiders</div>
+    <a class="media-float-btn" href="https://x.com/i/lists/2055370984149192951?s=20" target="_blank" rel="noopener noreferrer">
+        <div>
+            <div class="media-float-label">United Insiders on X</div>
+            <div class="media-float-sub">Mitten, Ornstein, Whitwell, Critchley and Stone</div>
+        </div>
+        <span class="media-float-pill dark">Link</span>
+    </a>
+
 <div class="media-section-title">Sky Sports Latest News</div>
 <div id="news-carousel" style="width: 100%; height: 420px; position: relative; overflow: hidden; border: none; margin-bottom: 4px;">
     <div id="carousel-inner"></div>
@@ -1127,21 +1136,14 @@
             <style>
                 /* Global ticker speed - locked permanently at 50 seconds */
                 .ticker-track-container {
-    display: inline-block;
-    white-space: nowrap;
-    padding-left: 100%;
-    /* Start paused and invisible so it doesn't try to run while empty */
-    animation-play-state: paused; 
-    opacity: 0;
-    will-change: transform;
-}
-
-/* This class will be added via JS once news is ready */
-.ticker-track-container.ready {
-    opacity: 1;
-    animation: tickerLoop 80s linear infinite;
-    animation-play-state: running;
-}
+                    display: inline-block;
+                    white-space: nowrap;
+                    padding-left: 100%;
+                    animation: tickerLoop 80s linear infinite !important;
+                    pointer-events: auto;
+                    -webkit-text-size-adjust: 100% !important;
+                    text-size-adjust: 100% !important;
+                }
 
                 /* Pause the crawl when you hold anywhere on the black bar area */
                 .ticker-window-wrapper:hover .ticker-track-container,
@@ -1907,14 +1909,10 @@ async function fetchLiveMufcNews() {
         // Inject the live, clickable Sky Sports headlines into the DOM
         marquee.innerHTML = htmlStream;
 
-        marquee.classList.add('ready');
-
     } catch (error) {
         console.error("Sky Sports JSON Fetch Error:", error);
         // A graceful fallback if the internet drops
         marquee.innerHTML = "LATEST MANCHESTER UNITED NEWS ONLINE • STATUS: ACTIVE •";
-
-        marquee.classList.add('ready');
     }
 }
 
