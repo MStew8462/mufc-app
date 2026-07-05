@@ -1127,15 +1127,21 @@
             <style>
                 /* Global ticker speed - locked permanently at 50 seconds */
                 .ticker-track-container {
-                    display: inline-block;
-                    white-space: nowrap;
-                    padding-left: 100%;
-                    will-change: transform;
-                    animation: tickerLoop 80s linear infinite !important;
-                    pointer-events: auto;
-                    -webkit-text-size-adjust: 100% !important;
-                    text-size-adjust: 100% !important;
-                }
+    display: inline-block;
+    white-space: nowrap;
+    padding-left: 100%;
+    /* Start paused and invisible so it doesn't try to run while empty */
+    animation-play-state: paused; 
+    opacity: 0;
+    will-change: transform;
+}
+
+/* This class will be added via JS once news is ready */
+.ticker-track-container.ready {
+    opacity: 1;
+    animation: tickerLoop 80s linear infinite;
+    animation-play-state: running;
+}
 
                 /* Pause the crawl when you hold anywhere on the black bar area */
                 .ticker-window-wrapper:hover .ticker-track-container,
@@ -1901,10 +1907,14 @@ async function fetchLiveMufcNews() {
         // Inject the live, clickable Sky Sports headlines into the DOM
         marquee.innerHTML = htmlStream;
 
+        marquee.classList.add('ready');
+
     } catch (error) {
         console.error("Sky Sports JSON Fetch Error:", error);
         // A graceful fallback if the internet drops
         marquee.innerHTML = "LATEST MANCHESTER UNITED NEWS ONLINE • STATUS: ACTIVE •";
+
+        marquee.classList.add('ready');
     }
 }
 
