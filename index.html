@@ -1127,21 +1127,14 @@
             <style>
                 /* Global ticker speed - locked permanently at 50 seconds */
                 .ticker-track-container {
-    display: inline-block;
-    white-space: nowrap;
-    padding-left: 100%;
-    /* Start paused and invisible so it doesn't try to run while empty */
-    animation-play-state: paused; 
-    opacity: 0;
-    will-change: transform;
-}
-
-/* This class will be added via JS once news is ready */
-.ticker-track-container.ready {
-    opacity: 1;
-    animation: tickerLoop 80s linear infinite;
-    animation-play-state: running;
-}
+                    display: inline-block;
+                    white-space: nowrap;
+                    padding-left: 100%;
+                    animation: tickerLoop 80s linear infinite !important;
+                    pointer-events: auto;
+                    -webkit-text-size-adjust: 100% !important;
+                    text-size-adjust: 100% !important;
+                }
 
                 /* Pause the crawl when you hold anywhere on the black bar area */
                 .ticker-window-wrapper:hover .ticker-track-container,
@@ -1851,7 +1844,14 @@ preds.forEach(p => { if (totals[p.user_name] === undefined) totals[p.user_name] 
             if (mode === 'loading') { el.textContent = 'Refreshing…'; el.classList.add('ptr-visible', 'ptr-ready'); }
         }
         function ptrModalBlocking() { const m = document.getElementById('predModal'); return m && m.classList.contains('active'); }
-        function isHomeScreenVisible() { const h = document.getElementById('screen-home'); if (!h) return false; return window.getComputedStyle(h).display !== 'none'; }
+        function isPullToRefreshAllowed() { 
+    const home = document.getElementById('screen-home');
+    const media = document.getElementById('screen-media');
+    
+    // Returns true if EITHER screen is visible
+    return (home && window.getComputedStyle(home).display !== 'none') || 
+           (media && window.getComputedStyle(media).display !== 'none');
+}
 
         async function refreshAppData() {
             if (!currentUser || _ptrRefreshBusy) return; _ptrRefreshBusy = true;
@@ -1859,10 +1859,39 @@ preds.forEach(p => { if (totals[p.user_name] === undefined) totals[p.user_name] 
         }
 
         (function setupPullToRefresh() {
-            document.addEventListener('touchstart', (e) => { if (!currentUser || ptrModalBlocking()) return; if (!isHomeScreenVisible()) return; if (window.scrollY > 12) return; _ptrTracking = true; _ptrStartY = e.touches[0].clientY; _ptrPull = 0; }, { passive: true });
-            document.addEventListener('touchmove', (e) => { if (!_ptrTracking || ptrModalBlocking()) return; if (!isHomeScreenVisible() || window.scrollY > 12) { _ptrTracking = false; setPtrVisual('hide'); return; } const y = e.touches[0].clientY; _ptrPull = Math.max(0, y - _ptrStartY); if (_ptrPull > 0) setPtrVisual('pull', _ptrPull); }, { passive: true });
-            document.addEventListener('touchend', () => { if (!_ptrTracking) return; _ptrTracking = false; const threshold = 72; if (_ptrPull >= threshold && isHomeScreenVisible() && currentUser && !_ptrRefreshBusy) { setPtrVisual('loading'); refreshAppData().finally(() => setPtrVisual('hide')); } else { setPtrVisual('hide'); } _ptrPull = 0; });
-        })();
+    console.log("Pull-to-refresh initializing..."); // Check this in your browser console!
+    
+    document.addEventListener('touchstart', (e) => { 
+        if (!currentUser || ptrModalBlocking()) return; 
+        if (!isPullToRefreshAllowed()) return; 
+        
+        // Log to see if it even detects the touch
+        console.log("Touch started"); 
+        
+        if (window.scrollY > 12) return; 
+        _ptrTracking = true; 
+        _ptrStartY = e.touches[0].clientY; 
+        _ptrPull = 0; 
+    }, { passive: false }); // Changed to false so we can control scrolling
+
+    document.addEventListener('touchmove', (e) => { 
+        if (!_ptrTracking || ptrModalBlocking()) return; 
+        
+        if (!isPullToRefreshAllowed() || window.scrollY > 12) {
+            _ptrTracking = false; 
+            setPtrVisual('hide'); 
+            return; 
+        } 
+        
+        const y = e.touches[0].clientY; 
+        _ptrPull = Math.max(0, y - _ptrStartY); 
+        
+        if (_ptrPull > 10) { // Small threshold to ignore accidental taps
+            e.preventDefault(); // Stop the browser from scrolling
+            setPtrVisual('pull', _ptrPull);
+        }
+    }, { passive: false }); // Changed to false
+})();
 
         function adminSwitchUser(newUser) { if (!newUser) return; currentUser = newUser; try { localStorage.setItem('mufc_user', newUser); } catch(e) {} location.reload(); }
 
@@ -1907,14 +1936,10 @@ async function fetchLiveMufcNews() {
         // Inject the live, clickable Sky Sports headlines into the DOM
         marquee.innerHTML = htmlStream;
 
-        marquee.classList.add('ready');
-
     } catch (error) {
         console.error("Sky Sports JSON Fetch Error:", error);
         // A graceful fallback if the internet drops
         marquee.innerHTML = "LATEST MANCHESTER UNITED NEWS ONLINE • STATUS: ACTIVE •";
-
-        marquee.classList.add('ready');
     }
 }
 
