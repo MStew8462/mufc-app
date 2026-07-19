@@ -1799,24 +1799,23 @@ if (fileName === 'fletcher') {
     const div = document.createElement('div');
     div.className = 'squad-card';
 
-    // The structure that keeps your DOB/Nationality info
-    // Build the card structure
-div.innerHTML = `
-    <div class="squad-avatar-container">
-        <img src="${imageUrl}" class="squad-img" onerror="this.style.display='none'">
-        ${p.number ? `<div class="squad-number-badge">${p.number}</div>` : ''}
-    </div>
-    <div class="squad-info">
-        <div class="squad-name">${p.name}</div>
-        <span class="squad-pos-badge ${posMap[p.position]}">${posLabel[p.position]}</span>
-        <div style="margin-top:5px; display:flex; flex-direction:column; gap:2px;">
-            ${p.nationality ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">${p.nationality}</div>` : ''}
-            ${dobStr ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">Born ${dobStr}${ageStr ? ` (Age ${ageStr})` : ''}</div>` : ''}
+    
+    div.innerHTML = `
+        <div class="squad-avatar-container">
+            <img src="${imageUrl}" class="squad-img" onerror="this.style.display='none'">
+            ${p.number ? `<div class="squad-number-badge">${p.number}</div>` : ''}
         </div>
-    </div>
-    ${p.stats_url ? `<button class="squad-stats-btn" onclick="window.open('${p.stats_url}','_blank'); event.stopPropagation();">Stats</button>` : ''}
-`;
-
+        <div class="squad-info">
+            <div class="squad-name">${p.name}</div>
+            <span class="squad-pos-badge ${posMap[p.position]}">${posLabel[p.position]}</span>
+            <div style="margin-top:5px; display:flex; flex-direction:column; gap:2px;">
+                ${p.nationality ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">${p.nationality}</div>` : ''}
+                ${dobStr ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">Born ${dobStr}${ageStr ? ` (Age ${ageStr})` : ''}</div>` : ''}
+            </div>
+        </div>
+        ${p.stats_url ? `<button class="squad-stats-btn" onclick="openStats('${p.stats_url}'); event.stopPropagation();">Stats</button>` : ''}
+    `;
+// ... rest of the code ...
     const targetContainer = document.getElementById(containers[p.position]);
     if (targetContainer) targetContainer.appendChild(div);
 });
@@ -2366,7 +2365,26 @@ async function initAppWithMediaWires() {
     // We removed fetchRedditTransferWire() from here
 }
 
+function openStats(url) {
+    const modal = document.getElementById('stats-modal');
+    const frame = document.getElementById('stats-frame');
+    frame.src = url;
+    modal.style.display = 'block';
+}
+
+function closeStats() {
+    const modal = document.getElementById('stats-modal');
+    const frame = document.getElementById('stats-frame');
+    modal.style.display = 'none';
+    frame.src = ''; // Clears the frame to save memory
+}
+
 window.addEventListener('load', initAppWithMediaWires);
 </script>
+<!-- Stats Modal -->
+<div id="stats-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:9999;">
+    <button onclick="closeStats()" style="position:absolute; top:10px; right:10px; z-index:10000; padding:10px;">Close</button>
+    <iframe id="stats-frame" src="" style="width:100%; height:100%; border:none;"></iframe>
+</div>
 </body>
 </html>
