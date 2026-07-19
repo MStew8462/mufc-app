@@ -1792,7 +1792,7 @@ preds.forEach(p => { if (totals[p.user_name] === undefined) totals[p.user_name] 
                     ${dobStr ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">Born ${dobStr}${ageStr ? ` (Age ${ageStr})` : ''}</div>` : ''}
                 </div>
             </div>
-            ${p.stats_url ? `<button class="squad-stats-btn" onclick="loadStatsInApp('${p.stats_url}'); event.stopPropagation();">Stats</button>` : ''}
+            ${p.stats_url ? `<button class="squad-stats-btn" onclick="window.open('${p.stats_url}','_blank'); event.stopPropagation();">Stats</button>` : ''}
         `;
         
         const targetContainer = document.getElementById(containers[p.position]);
@@ -2342,12 +2342,6 @@ loadSkySports();
 async function initAppWithMediaWires() {
     await initApp();
     // We removed fetchRedditTransferWire() from here
-}
-
-function loadStatsInApp(url) {
-    // This attempts to navigate your current page to the stats URL
-    // instead of opening a new window/external app.
-    window.location.href = url;
 }
 
 window.addEventListener('load', initAppWithMediaWires);
