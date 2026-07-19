@@ -13,6 +13,31 @@
         body { margin: 0; padding: 0; background-color: var(--bg); font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; max-width: 430px; margin: 0 auto; position: relative; padding-bottom: 100px; box-sizing: border-box; }
         * { box-sizing: border-box; }
 
+/* Custom close button styling */
+.modal-close-btn {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    width: 32px;
+    height: 32px;
+    background: #1c1c1e; /* Matches your dark elements */
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.modal-close-btn:active {
+    transform: scale(0.95);
+}
+
 .slide {
     display: none;
     width: 100%;
@@ -2383,8 +2408,12 @@ window.addEventListener('load', initAppWithMediaWires);
 </script>
 <!-- Stats Modal -->
 <div id="stats-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:9999;">
-    <button onclick="closeStats()" style="position:absolute; top:10px; right:10px; z-index:10000; padding:10px;">Close</button>
-    <iframe id="stats-frame" src="" style="width:100%; height:100%; border:none;"></iframe>
+    <button class="modal-close-btn" onclick="closeStats()">✕</button>
+    
+    <!-- Wrapper to crop the top of the iframe -->
+    <div style="width:100%; height:100%; overflow:hidden;">
+        <iframe id="stats-frame" src="" style="width:100%; height:110%; border:none; margin-top:-130px;"></iframe>
+    </div>
 </div>
 </body>
 </html>
