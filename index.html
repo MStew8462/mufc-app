@@ -222,6 +222,10 @@
     padding: 14px 16px 6px 16px;
 }
 
+.squad-avatar-container { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
+.squad-img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; }
+.squad-number-badge { position: absolute; bottom: -2px; right: -2px; width: 22px; height: 22px; background: var(--red); color: white; font-size: 11px; font-weight: 900; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 2px solid white; }
+
         /* Screens */
         .screen { display: none; animation: fadeIn 0.2s ease-out; }
         .screen.active { display: block; }
@@ -1762,42 +1766,60 @@ preds.forEach(p => { if (totals[p.user_name] === undefined) totals[p.user_name] 
     });
     
     players.forEach(p => {
-        const posMap = { GK: 'pos-gk', DF: 'pos-df', MF: 'pos-mf', FW: 'pos-fw' };
-        const posLabel = { GK: 'GK', DF: 'DEF', MF: 'MID', FW: 'FWD' };
-        const isGK = p.position === 'GK';
+    const posMap = { GK: 'pos-gk', DF: 'pos-df', MF: 'pos-mf', FW: 'pos-fw' };
+    const posLabel = { GK: 'GK', DF: 'DEF', MF: 'MID', FW: 'FWD' };
+    const isGK = p.position === 'GK';
 
-        let ageStr = '';
-        let dobStr = '';
-        if (p.dob) {
-            const dob = new Date(p.dob);
-            const today = new Date();
-            let age = today.getFullYear() - dob.getFullYear();
-            const m = today.getMonth() - dob.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
-            ageStr = `${age}`;
-            dobStr = dob.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-        }
+    let ageStr = '';
+    let dobStr = '';
+    if (p.dob) {
+        const dob = new Date(p.dob);
+        const today = new Date();
+        let age = today.getFullYear() - dob.getFullYear();
+        const m = today.getMonth() - dob.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+        ageStr = `${age}`;
+        dobStr = dob.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
 
-        const div = document.createElement('div');
-        div.className = 'squad-card';
-        div.innerHTML = `
-            <div class="squad-avatar ${isGK ? 'gk-avatar' : ''}">
-                ${p.number || '—'}
-            </div>
-            <div class="squad-info">
-                <div class="squad-name">${p.name}</div>
-                <span class="squad-pos-badge ${posMap[p.position] || 'pos-fw'}">${posLabel[p.position] || p.position}</span>
-                <div style="margin-top:5px; display:flex; flex-direction:column; gap:2px;">
-                    ${p.nationality ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">${p.nationality}</div>` : ''}
-                    ${dobStr ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">Born ${dobStr}${ageStr ? ` (Age ${ageStr})` : ''}</div>` : ''}
-                </div>
-            </div>
-            ${p.stats_url ? `<button class="squad-stats-btn" onclick="window.open('${p.stats_url}','_blank'); event.stopPropagation();">Stats</button>` : ''}
-        `;
-        
-        const targetContainer = document.getElementById(containers[p.position]);
-        if (targetContainer) targetContainer.appendChild(div);
-    });
+    // Image logic: Surnames only, handle Fletcher twins
+    let fileName = p.name.split(' ').pop().toLowerCase();
+
+if (fileName === 'fletcher') {
+    // Check for unique identifiers within the full name string
+    const nameLower = p.name.toLowerCase();
+    if (nameLower.includes('jack') || nameLower.includes('j.')) {
+        fileName = 'fletcher_j';
+    } else if (nameLower.includes('tyler') || nameLower.includes('t.')) {
+        fileName = 'fletcher_t';
+    }
+}
+    const imageUrl = `https://svnbsbrlnjcimoaxtajm.supabase.co/storage/v1/object/public/videos/players/${fileName}.png`;
+
+    const div = document.createElement('div');
+    div.className = 'squad-card';
+
+    // The structure that keeps your DOB/Nationality info
+    // Build the card structure
+div.innerHTML = `
+    <div class="squad-avatar-container">
+        <img src="${imageUrl}" class="squad-img" onerror="this.style.display='none'">
+        ${p.number ? `<div class="squad-number-badge">${p.number}</div>` : ''}
+    </div>
+    <div class="squad-info">
+        <div class="squad-name">${p.name}</div>
+        <span class="squad-pos-badge ${posMap[p.position]}">${posLabel[p.position]}</span>
+        <div style="margin-top:5px; display:flex; flex-direction:column; gap:2px;">
+            ${p.nationality ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">${p.nationality}</div>` : ''}
+            ${dobStr ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">Born ${dobStr}${ageStr ? ` (Age ${ageStr})` : ''}</div>` : ''}
+        </div>
+    </div>
+    ${p.stats_url ? `<button class="squad-stats-btn" onclick="window.open('${p.stats_url}','_blank'); event.stopPropagation();">Stats</button>` : ''}
+`;
+
+    const targetContainer = document.getElementById(containers[p.position]);
+    if (targetContainer) targetContainer.appendChild(div);
+});
 }
 
         function toggleHistory() { const section = document.getElementById('history-section'); const btn = document.getElementById('btn-toggle-history'); if (section.style.display === 'none') { section.style.display = 'block'; btn.innerText = '- Hide Previous Results'; } else { section.style.display = 'none'; btn.innerText = '+ View Previous Results'; } }
