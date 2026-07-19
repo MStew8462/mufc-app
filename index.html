@@ -1842,7 +1842,8 @@ if (fileName === 'fletcher') {
                 ${dobStr ? `<div style="font-size:11px; font-weight:600; color:var(--text-muted);">Born ${dobStr}${ageStr ? ` (Age ${ageStr})` : ''}</div>` : ''}
             </div>
         </div>
-        ${p.stats_url ? `<button class="squad-stats-btn" onclick="openStats('${p.stats_url}'); event.stopPropagation();">Stats</button>` : ''}
+        // Replace the button line with this <a> tag
+${p.stats_url ? `<a href="${p.stats_url}" target="_blank" rel="noopener noreferrer" class="squad-stats-btn" onclick="event.stopPropagation();" style="text-decoration: none; display: inline-block;">Stats</a>` : ''}
     `;
 // ... rest of the code ...
     const targetContainer = document.getElementById(containers[p.position]);
