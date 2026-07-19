@@ -2395,20 +2395,13 @@ async function initAppWithMediaWires() {
 }
 
 function openStats(url) {
-    const modal = document.getElementById('stats-modal');
-    const frame = document.getElementById('stats-frame');
-    document.body.style.overflow = 'hidden';
-    frame.src = url;
-    modal.style.display = 'block';
+    // This tells the phone to open the app directly
+    // Using '_blank' with a custom scheme like fotmob:// 
+    // will trigger the native app installation
+    window.open(url, '_blank');
 }
 
-function closeStats() {
-    const modal = document.getElementById('stats-modal');
-    const frame = document.getElementById('stats-frame');
-    document.body.style.overflow = '';
-    modal.style.display = 'none';
-    frame.src = ''; // Clears the frame to save memory
-}
+// We no longer need closeStats() because the app handles its own navigation
 
 window.addEventListener('load', initAppWithMediaWires);
 </script>
