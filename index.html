@@ -17,8 +17,8 @@
 .modal-close-btn {
     all: unset;
     position: absolute;
-    top: 10px;
-    right: 30px;
+    top: 2px;
+    right: 15px;
     width: 32px;
     height: 32px;
     background: transparent; /* Matches your dark elements */
@@ -2397,6 +2397,7 @@ async function initAppWithMediaWires() {
 function openStats(url) {
     const modal = document.getElementById('stats-modal');
     const frame = document.getElementById('stats-frame');
+    document.body.style.overflow = 'hidden';
     frame.src = url;
     modal.style.display = 'block';
 }
@@ -2404,6 +2405,7 @@ function openStats(url) {
 function closeStats() {
     const modal = document.getElementById('stats-modal');
     const frame = document.getElementById('stats-frame');
+    document.body.style.overflow = '';
     modal.style.display = 'none';
     frame.src = ''; // Clears the frame to save memory
 }
