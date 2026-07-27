@@ -1868,24 +1868,87 @@ if (fileName === 'fletcher') {
 
         function toggleHistory() { const section = document.getElementById('history-section'); const btn = document.getElementById('btn-toggle-history'); if (section.style.display === 'none') { section.style.display = 'block'; btn.innerText = '- Hide Previous Results'; } else { section.style.display = 'none'; btn.innerText = '+ View Previous Results'; } }
 
-        function openPredictionModal() {
-            try {
-                const modal = document.getElementById('predModal'); const titleEl = document.getElementById('modal-match-title'); const homeInput = document.getElementById('input-home'); const awayInput = document.getElementById('input-away');
-                let teamText = currentMatchLabel || ''; if (!teamText) { const homeTeamsEl = document.getElementById('home-fix-teams'); if (homeTeamsEl && homeTeamsEl.innerText.includes('vs')) { teamText = homeTeamsEl.innerText; } }
-                teamText = teamText || 'Next Match'; if (titleEl) titleEl.textContent = teamText;
-                const teams = teamText.split(' vs '); if (homeInput) homeInput.placeholder = (teams[0] || 'HOM').substring(0, 3).toUpperCase(); if (awayInput) awayInput.placeholder = (teams[1] || 'AWY').substring(0, 3).toUpperCase();
-                if (currentPrediction) {
-                    if (homeInput) homeInput.value = currentPrediction.pred_home ?? ''; if (awayInput) awayInput.value = currentPrediction.pred_away ?? '';
-                    const scorerDropdown = document.getElementById('input-scorer');
-                    if (scorerDropdown && scorerDropdown.options.length) {
-                        const raw = currentPrediction.pred_scorer; const invalid = !raw || String(raw).toLowerCase() === 'none'; let matched = false;
-                        Array.from(scorerDropdown.options).forEach(opt => { const sel = !invalid && opt.value === raw; opt.selected = sel; if (sel) matched = true; });
-                        if (!matched) { const ph = scorerDropdown.querySelector('option[value=""]'); if (ph) ph.selected = true; }
-                    }
-                } else { if (homeInput) homeInput.value = ''; if (awayInput) awayInput.value = ''; const scorerDropdown = document.getElementById('input-scorer'); if (scorerDropdown) { const ph = scorerDropdown.querySelector('option[value=""]'); if (ph) ph.selected = true; } }
-                if (modal) { modal.style.display = 'flex'; modal.classList.add('active'); }
-            } catch (error) { console.error("Modal Opening Error:", error); const modal = document.getElementById('predModal'); if (modal) { modal.style.display = 'flex'; modal.classList.add('active'); } }
+        // Helper function to turn team names into short uppercase abbreviations
+function getTeamAbbreviation(teamName) {
+    if (!teamName) return 'TM';
+    const upper = teamName.toUpperCase();
+    if (upper.includes('MANCHESTER UNITED') || upper.includes('MAN UTD') || upper === 'MAN UTD') return 'UTD';
+    if (upper.includes('HULL')) return 'HULL';
+    if (upper.includes('ARSENAL')) return 'ARS';
+    if (upper.includes('CHELSEA')) return 'CHE';
+    if (upper.includes('LIVERPOOL')) return 'LIV';
+    if (upper.includes('MANCHESTER CITY') || upper.includes('MAN CITY')) return 'MCI';
+    // Fallback: take the first 3 or 4 letters of the team name
+    return upper.replace(/[^A-Z]/g, '').substring(0, 3);
+}
+
+function openPredictionModal() {
+    try {
+        const modal = document.getElementById('predModal'); 
+        const titleEl = document.getElementById('modal-match-title'); 
+        const homeInput = document.getElementById('input-home'); 
+        const awayInput = document.getElementById('input-away');
+        
+        let teamText = currentMatchLabel || ''; 
+        if (!teamText) { 
+            const homeTeamsEl = document.getElementById('home-fix-teams'); 
+            if (homeTeamsEl) {
+                teamText = homeTeamsEl.innerText; 
+            }
         }
+        teamText = teamText || 'Next Match'; 
+        if (titleEl) titleEl.textContent = teamText;
+        
+        // Split the team text (e.g., "Hull City vs Man Utd") to get individual names
+        const teams = teamText.split('vs').map(t => t.trim());
+        const homeTeamName = teams[0] || 'Home';
+        const awayTeamName = teams[1] || 'Away';
+
+        // Apply clean abbreviations as placeholders instead of generic text
+        if (homeInput) homeInput.placeholder = getTeamAbbreviation(homeTeamName); 
+        if (awayInput) awayInput.placeholder = getTeamAbbreviation(awayTeamName);
+
+        if (currentPrediction) {
+            if (homeInput) homeInput.value = currentPrediction.pred_home ?? ''; 
+            if (awayInput) awayInput.value = currentPrediction.pred_away ?? '';
+            const scorerDropdown = document.getElementById('input-scorer');
+            if (scorerDropdown && scorerDropdown.options.length) {
+                const raw = currentPrediction.pred_scorer; 
+                const invalid = !raw || String(raw).toLowerCase() === 'none'; 
+                let matched = false;
+                Array.from(scorerDropdown.options).forEach(opt => { 
+                    const sel = !invalid && opt.value === raw; 
+                    opt.selected = sel; 
+                    if (sel) matched = true; 
+                });
+                if (!matched) { 
+                    const ph = scorerDropdown.querySelector('option[value=""]'); 
+                    if (ph) ph.selected = true; 
+                }
+            }
+        } else { 
+            if (homeInput) homeInput.value = ''; 
+            if (awayInput) awayInput.value = ''; 
+            const scorerDropdown = document.getElementById('input-scorer'); 
+            if (scorerDropdown) { 
+                const ph = scorerDropdown.querySelector('option[value=""]'); 
+                if (ph) ph.selected = true; 
+            } 
+        }
+        
+        if (modal) { 
+            modal.style.display = 'flex'; 
+            modal.classList.add('active'); 
+        }
+    } catch (error) { 
+        console.error("Modal Opening Error:", error); 
+        const modal = document.getElementById('predModal'); 
+        if (modal) { 
+            modal.style.display = 'flex'; 
+            modal.classList.add('active'); 
+        } 
+    }
+}
 
         async function closePredictionModal(saved) {
             const modal = document.getElementById('predModal'); if (!modal) return;
