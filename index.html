@@ -1252,7 +1252,15 @@
     "Newcastle": "newcastle",
     "Notts Forest": "nottmforest",
     "Sunderland": "sunderland",
-    "Tottenham": "tottenham"
+    "Tottenham": "tottenham",
+    "Sabah": "sabah",
+    "Atletico Madrid": "atletico",
+    "Bayern": "bayern",
+    "Como": "como",
+    "Leipzig": "leipzig",
+    "Roma": "roma",
+    "Sporting": "sporting",
+    "Villarreal": "villarreal"
 };
 
 function getTeamBadgeUrl(teamName) {
@@ -1373,10 +1381,19 @@ function formatFullScoreText(fixture) {
 
         const SOFA_EMBED = {
             pl: { title: 'Premier League', src: 'https://widgets.sofascore.com/embed/tournament/1/season/96668/standings/Premier%20League%2026%2F27?widgetTitle=Premier%20League%2026%2F27&showCompetitionLogo=true', h: 1123, foot: 'Standings provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/england/premier-league/17#id:96668">Sofascore</a>' },
-            uclLg: { src: 'https://widgets.sofascore.com/embed/tournament/138314/season/76953/standings/UEFA%20Champions%20League%2025%2F26?widgetTitle=UEFA%20Champions%20League%2025%2F26&showCompetitionLogo=true', h: 1763 },
+            uclLg: { 
+                src: 'https://widgets.sofascore.com/en/embed/tournament/138314/season/96518/standings/UEFA%20Champions%20League%2026%2F27?widgetTitle=UEFA%20Champions%20League%2026%2F27&showCompetitionLogo=true', 
+                h: 1763,
+                foot: 'Standings provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/europe/uefa-champions-league/7#id:96518">Sofascore</a>'
+            },
             uclKo: { src: 'https://widgets.sofascore.com/embed/unique-tournament/7/season/76953/cuptree/10850333?widgetTitle=UEFA%20Champions%20League%2025%2F26%2C%20Knockout%20stage&showCompetitionLogo=true&widgetTheme=light', h: 872 },
             fa: { title: 'FA Cup', src: 'https://widgets.sofascore.com/embed/unique-tournament/19/season/82557/cuptree/10848004?widgetTitle=FA%20Cup%2025%2F26&showCompetitionLogo=true&widgetTheme=light', h: 872, foot: 'Cup tree provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/england/fa-cup/19#id:82557">Sofascore</a>' },
-            efl: { title: 'EFL Cup', src: 'https://widgets.sofascore.com/embed/unique-tournament/21/season/77500/cuptree/10823514?widgetTitle=EFL%20Cup%2025%2F26&showCompetitionLogo=true&widgetTheme=light', h: 872, foot: 'Cup tree provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/england/efl-cup/21#id:77500">Sofascore</a>' },
+            efl: { 
+                title: 'EFL Cup', 
+                src: 'https://widgets.sofascore.com/en/embed/unique-tournament/21/season/96185/cuptree/10855522?widgetTitle=EFL%20Cup%2026%2F27&showCompetitionLogo=true&widgetTheme=light', 
+                h: 872, 
+                foot: 'Cup tree provided by <a target="_blank" rel="noopener" href="https://www.sofascore.com/football/tournament/england/efl-cup/21#id:96185">Sofascore</a>' 
+            },
             wcKo: { src: 'https://widgets.sofascore.com/embed/unique-tournament/16/season/58210/cuptree/10560975?widgetTitle=Knockout%20stage&showCompetitionLogo=true&widgetTheme=light', h: 950 }
         };
 
@@ -1685,74 +1702,141 @@ const { data: finishedData } = await supabaseClient.from('fixtures').select('*')
                     // Show the container if a match exists
                     if (lastMatchContainer) lastMatchContainer.style.display = 'block';
                     
-                    const l = lastFixture; const lastCard = document.getElementById('last-match-card'); if (lastCard) { lastCard.setAttribute('onclick', `openMatchCentre('${l.custom_id}', '${l.sofascore_id}', '${l.stats_url || ''}', '${l.highlights_url || ''}')`); }
-                    if (awaitingScore) { document.getElementById('last-fix-date').innerText = `${l.match_date} • Full Time`; document.getElementById('last-fix-teams').innerText = `${l.home_team} ${formatFullScoreText(l)} ${l.away_team}`; document.getElementById('last-fix-sub').innerText = `⏳ Awaiting final score...`; } else { document.getElementById('last-fix-date').innerText = `${l.match_date} • Full Time`; document.getElementById('last-fix-teams').innerText = `${l.home_team} ${formatFullScoreText(l)} ${l.away_team}`; document.getElementById('last-fix-sub').innerText = 'Tap to view stats & predictions ➔'; }
+                    const l = lastFixture; 
+                    const lastCard = document.getElementById('last-match-card'); 
+                    if (lastCard) { 
+                        lastCard.setAttribute('onclick', `openMatchCentre('${l.custom_id}', '${l.sofascore_id}', '${l.stats_url || ''}', '${l.highlights_url || ''}')`); 
+                    }
+
+                    // Generate team badge URLs
+                    const homeLogo = getTeamBadgeUrl(l.home_team);
+                    const awayLogo = getTeamBadgeUrl(l.away_team);
+                    const scoreText = formatFullScoreText(l);
+
+                    // Render teams with badges
+                    document.getElementById('last-fix-date').innerText = `${l.match_date} • Full Time`; 
+                    document.getElementById('last-fix-teams').innerHTML = `
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <img src="${homeLogo}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
+                            <span>${l.home_team}</span>
+                            <span style="font-size: 13px; color: var(--red); font-weight: 800; margin: 0 4px;">${scoreText}</span>
+                            <span>${l.away_team}</span>
+                            <img src="${awayLogo}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
+                        </div>
+                    `;
+                    document.getElementById('last-fix-sub').innerText = awaitingScore ? `⏳ Awaiting final score...` : 'Tap to view stats & predictions ➔'; 
                 } else {
-                    // Cleanly hide the entire element if no matches have finished yet this season
                     if (lastMatchContainer) lastMatchContainer.style.display = 'none';
                 }
             } catch (err) { console.error("Fixture Error:", err); } finally { setHomeFixtureSkeletons(false); }
         }
 
         async function fetchAllFixtures() {
-            try {
-                const { data, error } = await supabaseClient.from('fixtures').select('*').is('season', null).order('id', { ascending: true }); if (error) throw error;
-                const histCont = document.getElementById('list-history'); const lastCont = document.getElementById('list-last-match'); const upcoCont = document.getElementById('list-upcoming');
-                histCont.innerHTML = ''; lastCont.innerHTML = ''; upcoCont.innerHTML = ''; const finished = data.filter(f => f.status === 'finished'); const upcoming = data.filter(f => f.status === 'upcoming');
-                if (finished.length > 0) {
-    const last = finished[finished.length - 1];
-    const homeLogo = getTeamBadgeUrl(last.home_team);
-    const awayLogo = getTeamBadgeUrl(last.away_team);
-    
-    lastCont.innerHTML = `
-        <div class="card row-flex" onclick="openMatchCentre('${last.custom_id}', '${last.sofascore_id}', '${last.stats_url || ''}', '${last.highlights_url || ''}')" style="padding: 12px 20px; align-items: center;">
-            <div style="flex: 1;">
-                <div class="fix-date">${last.match_date}</div>
-                <div class="fix-teams" style="display:flex; align-items:center; justify-content:center; gap:8px; margin: 8px 0;">
-                    <img src="${homeLogo}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
-                    <span style="font-weight: 800;">${last.home_team}</span>
-                    <span style="font-size: 13px; color: var(--red); font-weight: 800;">${formatFullScoreText(last)}</span>
-                    <span style="font-weight: 800;">${last.away_team}</span>
-                    <img src="${awayLogo}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
-                </div>
-            </div>
-            <div style="font-weight: 800; color: var(--red);">➔</div>
-        </div>
-    `;
-                    finished.slice(0, -1).forEach(f => { histCont.innerHTML += `<div class="card row-flex" style="border-left: 4px solid #8e8e93; opacity: 0.8; margin-bottom: 8px; padding: 12px 20px;" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')"><div><div class="fix-date" style="font-size: 10px;">${f.match_date}</div><div class="fix-teams" style="display:flex; align-items:center; justify-content:center; gap: 8px;">
-    <img src="${getTeamBadgeUrl(f.home_team)}" style="width:20px; height:20px; object-fit:contain;">
-    <span>${f.home_team}</span>
-    <span style="font-size: 12px; color: var(--text-muted); margin: 0 4px;">vs</span>
-    <span>${f.away_team}</span>
-    <img src="${getTeamBadgeUrl(f.away_team)}" style="width:20px; height:20px; object-fit:contain;">
-</div></div><div style="font-weight: 800; color: var(--red);">➔</div></div>`; });
-                }
-                upcoming.forEach(f => {
-    // We fetch the URLs safely
-    const homeLogo = getTeamBadgeUrl(f.home_team);
-    const awayLogo = getTeamBadgeUrl(f.away_team);
+    try {
+        // Fetch fixtures from Supabase
+        const { data, error } = await supabaseClient
+            .from('fixtures')
+            .select('*')
+            .is('season', null); // Fetch current season fixtures
 
-    upcoCont.innerHTML += `
-        <div class="card row-flex" style="border-left: 4px solid var(--red); padding: 12px 20px; margin-bottom: 8px;" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')">
-            <div style="flex: 1;">
-                <div class="fix-date">${f.match_date} • ${f.kickoff_time}</div>
-                
-                <div class="fix-teams" style="display:flex; align-items:center; justify-content:center; gap:8px; margin: 8px 0;">
-                    <img src="${homeLogo}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
-                    <span style="font-weight: 800;">${f.home_team}</span>
-                    <span style="font-size: 12px; color: var(--text-muted);">vs</span>
-                    <span style="font-weight: 800;">${f.away_team}</span>
-                    <img src="${awayLogo}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
+        if (error) throw error;
+        if (!data) return;
+
+        // Sort fixtures chronologically by match_date and kickoff_time
+        data.sort((a, b) => {
+            const dateA = new Date(`${a.match_date} ${a.kickoff_time || '00:00'}`);
+            const dateB = new Date(`${b.match_date} ${b.kickoff_time || '00:00'}`);
+            return dateA - dateB; // Ascending order (earliest dates first)
+        });
+
+        const histCont = document.getElementById('list-history'); 
+        const lastCont = document.getElementById('list-last-match'); 
+        const upcoCont = document.getElementById('list-upcoming');
+        
+        histCont.innerHTML = ''; 
+        lastCont.innerHTML = ''; 
+        upcoCont.innerHTML = ''; 
+        
+        const finished = data.filter(f => f.status === 'finished'); 
+        const upcoming = data.filter(f => f.status === 'upcoming');
+
+        if (finished.length > 0) {
+            const last = finished[finished.length - 1];
+            const homeLogo = getTeamBadgeUrl(last.home_team);
+            const awayLogo = getTeamBadgeUrl(last.away_team);
+            
+            lastCont.innerHTML = `
+                <div class="card row-flex" onclick="openMatchCentre('${last.custom_id}', '${last.sofascore_id}', '${last.stats_url || ''}', '${last.highlights_url || ''}')" style="padding: 12px 20px; align-items: center;">
+                    <div style="flex: 1;">
+                        <div class="fix-date">${last.match_date}</div>
+                        <div class="fix-teams" style="display:flex; align-items:center; justify-content:center; gap:8px; margin: 8px 0;">
+                            <img src="${homeLogo}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
+                            <span style="font-weight: 800;">${last.home_team}</span>
+                            <span style="font-size: 13px; color: var(--red); font-weight: 800;">${formatFullScoreText(last)}</span>
+                            <span style="font-weight: 800;">${last.away_team}</span>
+                            <img src="${awayLogo}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
+                        </div>
+                    </div>
+                    <div style="font-weight: 800; color: var(--red);">➔</div>
                 </div>
-                
-                <div class="fix-sub">${f.competition} • ${f.stadium}</div>
-            </div>
-            <div style="font-weight: 800; color: var(--red);">➔</div>
-        </div>
-    `;
-});
-            } catch (err) { console.error("Fixtures List Error:", err); }
+            `;
+            
+            // Render previous results with fallback score protection
+                    finished.slice(0, -1).forEach(f => { 
+                        const histHomeLogo = getTeamBadgeUrl(f.home_team);
+                        const histAwayLogo = getTeamBadgeUrl(f.away_team);
+                        
+                        // Fallback check to guarantee score text builds correctly
+                        let scoreDisplay = "vs";
+                        if (f.home_score !== null && f.home_score !== undefined && f.away_score !== null && f.away_score !== undefined) {
+                            scoreDisplay = `${f.home_score} - ${f.away_score}`;
+                            if (f.home_score_aet !== null && f.away_score_aet !== null) {
+                                scoreDisplay = `${f.home_score_aet} - ${f.away_score_aet} (AET)`;
+                            }
+                        }
+
+                        histCont.innerHTML += `
+                            <div class="card row-flex" style="border-left: 4px solid #8e8e93; opacity: 0.9; margin-bottom: 8px; padding: 12px 20px; align-items: center;" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')">
+                                <div style="flex: 1;">
+                                    <div class="fix-date" style="font-size: 10px;">${f.match_date}</div>
+                                    <div class="fix-teams" style="display:flex; align-items:center; justify-content:center; gap: 8px; margin: 6px 0;">
+                                        <img src="${histHomeLogo}" style="width:20px; height:20px; object-fit:contain;" onerror="this.style.display='none'">
+                                        <span style="font-weight: 800;">${f.home_team}</span>
+                                        <span style="font-size: 13px; color: var(--red); font-weight: 800; margin: 0 4px;">${scoreDisplay}</span>
+                                        <span style="font-weight: 800;">${f.away_team}</span>
+                                        <img src="${histAwayLogo}" style="width:20px; height:20px; object-fit:contain;" onerror="this.style.display='none'">
+                                    </div>
+                                </div>
+                                <div style="font-weight: 800; color: var(--red);">➔</div>
+                            </div>`; 
+                    });
         }
+
+        upcoming.forEach(f => {
+            const homeLogo = getTeamBadgeUrl(f.home_team);
+            const awayLogo = getTeamBadgeUrl(f.away_team);
+
+            upcoCont.innerHTML += `
+                <div class="card row-flex" style="border-left: 4px solid var(--red); padding: 12px 20px; margin-bottom: 8px;" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')">
+                    <div style="flex: 1;">
+                        <div class="fix-date">${f.match_date} • ${f.kickoff_time}</div>
+                        <div class="fix-teams" style="display:flex; align-items:center; justify-content:center; gap:8px; margin: 8px 0;">
+                            <img src="${homeLogo}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
+                            <span style="font-weight: 800;">${f.home_team}</span>
+                            <span style="font-size: 12px; color: var(--text-muted);">vs</span>
+                            <span style="font-weight: 800;">${f.away_team}</span>
+                            <img src="${awayLogo}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
+                        </div>
+                        <div class="fix-sub">${f.competition} • ${f.stadium}</div>
+                    </div>
+                    <div style="font-weight: 800; color: var(--red);">➔</div>
+                </div>
+            `;
+        });
+    } catch (err) { 
+        console.error("Fixtures List Error:", err); 
+    }
+}
 
         async function refreshUsers() {
             const nameDisplay = document.getElementById('prof-name'); if (nameDisplay) nameDisplay.innerText = currentUser;
