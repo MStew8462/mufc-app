@@ -1647,8 +1647,25 @@ if (iframeLineups && sofaId) {
             setHomeFixtureSkeletons(true);
             try {
                 const now = new Date(); const threeHoursMs = 3 * 60 * 60 * 1000;
-                const { data: upcomingData } = await supabaseClient.from('fixtures').select('*').is('season', null).eq('status', 'upcoming').order('id', { ascending: true });
-const { data: finishedData } = await supabaseClient.from('fixtures').select('*').is('season', null).eq('status', 'finished').order('id', { ascending: false });
+                
+                // Fetch upcoming fixtures without rigid ID ordering
+                const { data: upcomingData } = await supabaseClient
+                    .from('fixtures')
+                    .select('*')
+                    .is('season', null)
+                    .eq('status', 'upcoming');
+
+                // Sort upcoming fixtures chronologically by date and kickoff time
+                if (upcomingData && upcomingData.length > 0) {
+                    upcomingData.sort((a, b) => {
+                        const dateA = new Date(`${a.match_date} ${a.kickoff_time || '00:00'}`);
+                        const dateB = new Date(`${b.match_date} ${b.kickoff_time || '00:00'}`);
+                        return dateA - dateB;
+                    });
+                }
+
+                const { data: finishedData } = await supabaseClient.from('fixtures').select('*').is('season', null).eq('status', 'finished').order('id', { ascending: false });
+                
                 let nextFixture = null; let currentFixture = null;
                 if (upcomingData && upcomingData.length > 0) {
                     for (const f of upcomingData) {
@@ -1657,18 +1674,32 @@ const { data: finishedData } = await supabaseClient.from('fixtures').select('*')
                     }
                 }
                 const displayFixture = currentFixture || nextFixture;
+                
+                // DYNAMIC HOME COMPETITION TILE UPDATE
+                const compConfig = getCompetitionHomeConfig(displayFixture?.competition);
+                const homeCompCard = document.querySelector('.card.w-50[onclick*="openCompetitionsFromHome"]');
+                if (homeCompCard) {
+                    homeCompCard.setAttribute('onclick', `openCompetitionFromHomeCard('${compConfig.key}')`);
+                    const logoImg = homeCompCard.querySelector('img');
+                    if (logoImg) logoImg.src = compConfig.logo;
+                    const labelDiv = homeCompCard.querySelector('div:last-child');
+                    if (labelDiv) labelDiv.innerHTML = `${compConfig.name} ➔`;
+                }
+
                 if (displayFixture) {
                     const m = displayFixture; currentMatchId = m.custom_id || m.id;
                     const nextCard = document.getElementById('next-match-card'); nextCard.setAttribute('onclick', `openMatchCentre('${currentMatchId}', '${m.sofascore_id}', '${m.stats_url || ''}', '${m.highlights_url || ''}')`);
-                    document.getElementById('home-fix-date').innerText = `Next Fixture • ${m.match_date}`; document.getElementById('home-fix-teams').innerHTML = `
-    <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
-        <img src="${getTeamBadgeUrl(m.home_team)}" style="width:24px; height:24px; object-fit:contain;">
-        <span>${m.home_team}</span>
-        <span style="font-size: 14px; color: var(--text-muted); margin: 0 4px;">vs</span>
-        <span>${m.away_team}</span>
-        <img src="${getTeamBadgeUrl(m.away_team)}" style="width:24px; height:24px; object-fit:contain;">
-    </div>
-`; document.getElementById('home-fix-sub').innerText = `${m.stadium} • ${m.kickoff_time}`;
+                    document.getElementById('home-fix-date').innerText = `Next Fixture • ${m.match_date}`; 
+                    document.getElementById('home-fix-teams').innerHTML = `
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <img src="${getTeamBadgeUrl(m.home_team)}" style="width:24px; height:24px; object-fit:contain;">
+                            <span>${m.home_team}</span>
+                            <span style="font-size: 14px; color: var(--text-muted); margin: 0 4px;">vs</span>
+                            <span>${m.away_team}</span>
+                            <img src="${getTeamBadgeUrl(m.away_team)}" style="width:24px; height:24px; object-fit:contain;">
+                        </div>
+                    `; 
+                    document.getElementById('home-fix-sub').innerText = `${m.stadium} • ${m.kickoff_time}`;
                     const ko = parseKickoffDate(m.match_date, m.kickoff_time); updatePredictionLockState(ko);
                 } else {
                     // No upcoming fixtures — season complete
@@ -1781,35 +1812,62 @@ const { data: finishedData } = await supabaseClient.from('fixtures').select('*')
                 </div>
             `;
             
-            // Render previous results with fallback score protection
-                    finished.slice(0, -1).forEach(f => { 
-                        const histHomeLogo = getTeamBadgeUrl(f.home_team);
-                        const histAwayLogo = getTeamBadgeUrl(f.away_team);
-                        
-                        // Fallback check to guarantee score text builds correctly
-                        let scoreDisplay = "vs";
-                        if (f.home_score !== null && f.home_score !== undefined && f.away_score !== null && f.away_score !== undefined) {
-                            scoreDisplay = `${f.home_score} - ${f.away_score}`;
-                            if (f.home_score_aet !== null && f.away_score_aet !== null) {
-                                scoreDisplay = `${f.home_score_aet} - ${f.away_score_aet} (AET)`;
-                            }
+            // Update finished / historical matches rendering loop
+                finished.slice(0, -1).forEach(f => { 
+                    const histHomeLogo = getTeamBadgeUrl(f.home_team);
+                    const histAwayLogo = getTeamBadgeUrl(f.away_team);
+                    let scoreDisplay = "vs";
+                    if (f.home_score !== null && f.home_score !== undefined && f.away_score !== null && f.away_score !== undefined) {
+                        scoreDisplay = `${f.home_score} - ${f.away_score}`;
+                        if (f.home_score_aet !== null && f.home_score_aet !== null) {
+                            scoreDisplay = `${f.home_score_aet} - ${f.away_score_aet} (AET)`;
                         }
+                    }
 
-                        histCont.innerHTML += `
-                            <div class="card row-flex" style="border-left: 4px solid #8e8e93; opacity: 0.9; margin-bottom: 8px; padding: 12px 20px; align-items: center;" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')">
-                                <div style="flex: 1;">
-                                    <div class="fix-date" style="font-size: 10px;">${f.match_date}</div>
-                                    <div class="fix-teams" style="display:flex; align-items:center; justify-content:center; gap: 8px; margin: 6px 0;">
-                                        <img src="${histHomeLogo}" style="width:20px; height:20px; object-fit:contain;" onerror="this.style.display='none'">
-                                        <span style="font-weight: 800;">${f.home_team}</span>
-                                        <span style="font-size: 13px; color: var(--red); font-weight: 800; margin: 0 4px;">${scoreDisplay}</span>
-                                        <span style="font-weight: 800;">${f.away_team}</span>
-                                        <img src="${histAwayLogo}" style="width:20px; height:20px; object-fit:contain;" onerror="this.style.display='none'">
-                                    </div>
+                    // ➔ Dynamic accent color applied here
+                    const accentColor = getCompetitionColor(f.competition);
+
+                    histCont.innerHTML += `
+                        <div class="card row-flex" style="border-left: 4px solid ${accentColor}; opacity: 0.9; margin-bottom: 8px; padding: 12px 20px; align-items: center;" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')">
+                            <div style="flex: 1;">
+                                <div class="fix-date" style="font-size: 10px;">${f.match_date} • ${f.competition || ''}</div>
+                                <div class="fix-teams" style="display:flex; align-items:center; justify-content:center; gap: 8px; margin: 6px 0;">
+                                    <img src="${histHomeLogo}" style="width:20px; height:20px; object-fit:contain;" onerror="this.style.display='none'">
+                                    <span style="font-weight: 800;">${f.home_team}</span>
+                                    <span style="font-size: 13px; color: var(--red); font-weight: 800; margin: 0 4px;">${scoreDisplay}</span>
+                                    <span style="font-weight: 800;">${f.away_team}</span>
+                                    <img src="${histAwayLogo}" style="width:20px; height:20px; object-fit:contain;" onerror="this.style.display='none'">
                                 </div>
-                                <div style="font-weight: 800; color: var(--red);">➔</div>
-                            </div>`; 
-                    });
+                            </div>
+                            <div style="font-weight: 800; color: var(--red);">➔</div>
+                        </div>`; 
+                });
+
+                // Update upcoming matches rendering loop
+                upcoming.forEach(f => {
+                    const homeLogo = getTeamBadgeUrl(f.home_team);
+                    const awayLogo = getTeamBadgeUrl(f.away_team);
+                    
+                    // ➔ Dynamic accent color applied here
+                    const accentColor = getCompetitionColor(f.competition);
+
+                    upcoCont.innerHTML += `
+                        <div class="card row-flex" style="border-left: 4px solid ${accentColor}; padding: 12px 20px; margin-bottom: 8px;" onclick="openMatchCentre('${f.custom_id}', '${f.sofascore_id}', '${f.stats_url || ''}', '${f.highlights_url || ''}')">
+                            <div style="flex: 1;">
+                                <div class="fix-date">${f.match_date} • ${f.kickoff_time}</div>
+                                <div class="fix-teams" style="display:flex; align-items:center; justify-content:center; gap:8px; margin: 8px 0;">
+                                    <img src="${homeLogo}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
+                                    <span style="font-weight: 800;">${f.home_team}</span>
+                                    <span style="font-size: 12px; color: var(--text-muted);">vs</span>
+                                    <span style="font-weight: 800;">${f.away_team}</span>
+                                    <img src="${awayLogo}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
+                                </div>
+                                <div class="fix-sub">${f.competition} • ${f.stadium}</div>
+                            </div>
+                            <div style="font-weight: 800; color: var(--red);">➔</div>
+                        </div>
+                    `;
+                });
         }
 
         upcoming.forEach(f => {
@@ -1835,6 +1893,18 @@ const { data: finishedData } = await supabaseClient.from('fixtures').select('*')
         });
     } catch (err) { 
         console.error("Fixtures List Error:", err); 
+    }
+}
+
+function openCompetitionFromHomeCard(compKey) {
+    if (compKey === 'ucl') {
+        switchScreen('screen-competitions');
+        compOpenDetail('ucl');
+    } else if (compKey === 'fa' || compKey === 'efl') {
+        switchScreen('screen-competitions');
+        compOpenDetail(compKey);
+    } else {
+        openCompetitionsFromHome();
     }
 }
 
@@ -2533,6 +2603,53 @@ async function loadSkySports() {
     } catch (err) {
         document.getElementById("carousel-inner").innerHTML = "<p>Feed currently unavailable.</p>";
     }
+}
+
+// Helper to determine card accent color based on competition name
+function getCompetitionColor(competitionName) {
+    if (!competitionName) return 'var(--red)';
+    const name = competitionName.toLowerCase();
+    if (name.includes('champions league') || name.includes('ucl')) return '#175CD3'; // Blue
+    if (name.includes('cup') || name.includes('fa cup') || name.includes('league cup') || name.includes('efl')) return '#34c759'; // Green
+    return 'var(--red)'; // Premier League / Default Red
+}
+
+// Helper to determine home competition card config based on next match competition
+function getCompetitionHomeConfig(competitionName) {
+    if (!competitionName) {
+        return { 
+            key: 'pl', 
+            name: 'Premier League', 
+            logo: 'https://upload.wikimedia.org/wikipedia/en/f/f2/Premier_League_Logo.svg' 
+        };
+    }
+    const name = competitionName.toLowerCase();
+    if (name.includes('champions league') || name.includes('ucl')) {
+        return { 
+            key: 'ucl', 
+            name: 'Champions League', 
+            logo: 'https://svnbsbrlnjcimoaxtajm.supabase.co/storage/v1/object/public/videos/CL.png' 
+        };
+    }
+    if (name.includes('fa cup')) {
+        return { 
+            key: 'fa', 
+            name: 'FA Cup', 
+            logo: 'https://svnbsbrlnjcimoaxtajm.supabase.co/storage/v1/object/public/videos/FAC.png' 
+        };
+    }
+    if (name.includes('league cup') || name.includes('efl')) {
+        return { 
+            key: 'efl', 
+            name: 'League Cup', 
+            logo: 'https://svnbsbrlnjcimoaxtajm.supabase.co/storage/v1/object/public/videos/LC.png' 
+        };
+    }
+    return { 
+        key: 'pl', 
+        name: 'Premier League', 
+        logo: 'https://upload.wikimedia.org/wikipedia/en/f/f2/Premier_League_Logo.svg' 
+    };
 }
 
 function nextSlide() {
