@@ -2596,30 +2596,77 @@ let currentSlide = 0;
 async function loadSkySports() {
     const rssUrl = "https://www.skysports.com/rss/11667";
     const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
-    
-    try {
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-        const carousel = document.getElementById("carousel-inner");
-        
-        data.items.slice(0, 5).forEach((item, index) => {
+    const fallbackUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`;
+    const carousel = document.getElementById("carousel-inner");
+    if (!carousel) return;
+
+    // Helper to safely extract article image
+    const extractImage = (item) => {
+        if (item.enclosure && item.enclosure.link) return item.enclosure.link;
+        if (item.thumbnail) return item.thumbnail;
+        // Fallback default image if an article doesn't include one
+        return "https://upload.wikimedia.org/wikipedia/en/7/7a/Manchester_United_FC_crest.svg";
+    };
+
+    const renderSlides = (articles) => {
+        carousel.innerHTML = "";
+        articles.slice(0, 5).forEach((item, index) => {
+            const imgSrc = extractImage(item);
             carousel.innerHTML += `
                 <div class="slide" style="display: ${index === 0 ? 'block' : 'none'}">
-                    <a href="${item.link}" target="_blank" rel="noopener noreferrer" style="text-decoration: none; color: inherit;">
-                        <img src="${item.enclosure.link}" style="width: 95%; height: 300px; object-fit: cover;">
-                        <h3>${item.title}</h3>
+                    <a href="${item.link || '#'}" target="_blank" rel="noopener noreferrer" style="text-decoration: none; color: inherit;">
+                        <img src="${imgSrc}" style="width: 95%; height: 300px; object-fit: cover; border-radius: 8px;" onerror="this.src='https://upload.wikimedia.org/wikipedia/en/7/7a/Manchester_United_FC_crest.svg'">
+                        <h3 style="margin-top: 10px; font-size: 15px; line-height: 1.4;">${item.title}</h3>
                     </a>
                 </div>
             `;
         });
+        if (typeof nextSlide === 'function') {
+            setInterval(nextSlide, 8000);
+        }
+    };
+
+    try {
+        // Attempt 1: rss2json
+        const response = await fetch(apiUrl);
+        const data = await response.json();
         
-        // Start the automatic timer
-        setInterval(nextSlide, 8000); 
+        if (data.status === 'ok' && Array.isArray(data.items) && data.items.length > 0) {
+            renderSlides(data.items);
+            return;
+        }
+        throw new Error("rss2json returned non-OK status or empty items");
+    } catch (primaryErr) {
+        console.warn("Primary RSS fetch failed, trying fallback...", primaryErr);
         
-    } catch (err) {
-        document.getElementById("carousel-inner").innerHTML = "<p>Feed currently unavailable.</p>";
+        // Attempt 2: AllOrigins proxy + native browser XML parser
+        try {
+            const fallbackRes = await fetch(fallbackUrl);
+            const fallbackData = await fallbackRes.json();
+            const parser = new DOMParser();
+            const xml = parser.parseFromString(fallbackData.contents, "text/xml");
+            
+            const rawItems = Array.from(xml.querySelectorAll("item")).map(item => {
+                const enc = item.querySelector("enclosure");
+                return {
+                    title: item.querySelector("title")?.textContent || "Latest News",
+                    link: item.querySelector("link")?.textContent || "#",
+                    enclosure: enc ? { link: enc.getAttribute("url") } : null
+                };
+            });
+
+            if (rawItems.length > 0) {
+                renderSlides(rawItems);
+                return;
+            }
+            throw new Error("No items parsed from XML fallback");
+        } catch (fallbackErr) {
+            console.error("All feed sources failed:", fallbackErr);
+            carousel.innerHTML = "<p style='padding: 20px; color: var(--text-muted);'>Feed currently unavailable.</p>";
+        }
     }
 }
+
 
 // Helper to determine card accent color based on competition name
 function getCompetitionColor(competitionName) {
