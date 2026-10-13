@@ -2595,77 +2595,69 @@ let currentSlide = 0;
 
 async function loadSkySports() {
     const rssUrl = "https://www.skysports.com/rss/11667";
-    const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
-    const fallbackUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`;
     const carousel = document.getElementById("carousel-inner");
     if (!carousel) return;
 
-    // Helper to safely extract article image
-    const extractImage = (item) => {
-        if (item.enclosure && item.enclosure.link) return item.enclosure.link;
-        if (item.thumbnail) return item.thumbnail;
-        // Fallback default image if an article doesn't include one
-        return "https://upload.wikimedia.org/wikipedia/en/7/7a/Manchester_United_FC_crest.svg";
-    };
+    // Direct proxy to fetch Sky's raw XML bypassing CORS
+    const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(rssUrl)}`;
+    const fallbackProxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`;
+    const fallbackImg = "https://upload.wikimedia.org/wikipedia/en/7/7a/Manchester_United_FC_crest.svg";
 
-    const renderSlides = (articles) => {
-        carousel.innerHTML = "";
-        articles.slice(0, 5).forEach((item, index) => {
-            const imgSrc = extractImage(item);
-            carousel.innerHTML += `
-                <div class="slide" style="display: ${index === 0 ? 'block' : 'none'}">
-                    <a href="${item.link || '#'}" target="_blank" rel="noopener noreferrer" style="text-decoration: none; color: inherit;">
-                        <img src="${imgSrc}" style="width: 95%; height: 300px; object-fit: cover; border-radius: 8px;" onerror="this.src='https://upload.wikimedia.org/wikipedia/en/7/7a/Manchester_United_FC_crest.svg'">
-                        <h3 style="margin-top: 10px; font-size: 15px; line-height: 1.4;">${item.title}</h3>
-                    </a>
-                </div>
-            `;
-        });
-        if (typeof nextSlide === 'function') {
-            setInterval(nextSlide, 8000);
-        }
-    };
+    let xmlText = null;
 
     try {
-        // Attempt 1: rss2json
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-        
-        if (data.status === 'ok' && Array.isArray(data.items) && data.items.length > 0) {
-            renderSlides(data.items);
-            return;
-        }
-        throw new Error("rss2json returned non-OK status or empty items");
-    } catch (primaryErr) {
-        console.warn("Primary RSS fetch failed, trying fallback...", primaryErr);
-        
-        // Attempt 2: AllOrigins proxy + native browser XML parser
-        try {
-            const fallbackRes = await fetch(fallbackUrl);
-            const fallbackData = await fallbackRes.json();
-            const parser = new DOMParser();
-            const xml = parser.parseFromString(fallbackData.contents, "text/xml");
-            
-            const rawItems = Array.from(xml.querySelectorAll("item")).map(item => {
-                const enc = item.querySelector("enclosure");
-                return {
-                    title: item.querySelector("title")?.textContent || "Latest News",
-                    link: item.querySelector("link")?.textContent || "#",
-                    enclosure: enc ? { link: enc.getAttribute("url") } : null
-                };
-            });
+        const res = await fetch(proxyUrl);
+        if (res.ok) xmlText = await res.text();
+    } catch (e) {
+        console.warn("Primary proxy failed, trying fallback...", e);
+    }
 
-            if (rawItems.length > 0) {
-                renderSlides(rawItems);
-                return;
-            }
-            throw new Error("No items parsed from XML fallback");
-        } catch (fallbackErr) {
-            console.error("All feed sources failed:", fallbackErr);
-            carousel.innerHTML = "<p style='padding: 20px; color: var(--text-muted);'>Feed currently unavailable.</p>";
+    if (!xmlText) {
+        try {
+            const fallbackRes = await fetch(fallbackProxyUrl);
+            if (fallbackRes.ok) xmlText = await fallbackRes.text();
+        } catch (e) {
+            console.error("All proxies failed:", e);
         }
     }
+
+    if (!xmlText) {
+        carousel.innerHTML = "<p style='padding: 15px; color: var(--text-muted); font-size: 13px;'>Feed currently unavailable.</p>";
+        return;
+    }
+
+    // Parse raw RSS XML natively
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+    const items = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 5);
+
+    if (items.length === 0) {
+        carousel.innerHTML = "<p style='padding: 15px; color: var(--text-muted); font-size: 13px;'>No articles found.</p>";
+        return;
+    }
+
+    carousel.innerHTML = "";
+    items.forEach((item, index) => {
+        const title = item.querySelector("title")?.textContent || "Latest News";
+        const link = item.querySelector("link")?.textContent || "#";
+        const enclosure = item.querySelector("enclosure");
+        const imgSrc = enclosure ? enclosure.getAttribute("url") : fallbackImg;
+
+        carousel.innerHTML += `
+            <div class="slide" style="display: ${index === 0 ? 'block' : 'none'}; width: 100%;">
+                <a href="${link}" target="_blank" rel="noopener noreferrer" style="text-decoration: none; color: inherit; display: block;">
+                    <img src="${imgSrc}" style="width: 100%; height: 220px; object-fit: cover; border-radius: 8px;" onerror="this.src='${fallbackImg}'">
+                    <h3 style="margin-top: 10px; font-size: 15px; line-height: 1.4;">${title}</h3>
+                </a>
+            </div>
+        `;
+    });
+
+    if (typeof nextSlide === "function") {
+        setInterval(nextSlide, 8000);
+    }
 }
+
 
 
 // Helper to determine card accent color based on competition name
