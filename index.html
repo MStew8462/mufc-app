@@ -2594,69 +2594,118 @@ async function fetchLiveMufcNews() {
 let currentSlide = 0;
 
 async function loadSkySports() {
-    const rssUrl = "https://www.skysports.com/rss/11667";
     const carousel = document.getElementById("carousel-inner");
     if (!carousel) return;
 
-    // Direct proxy to fetch Sky's raw XML bypassing CORS
-    const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(rssUrl)}`;
-    const fallbackProxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`;
     const fallbackImg = "https://upload.wikimedia.org/wikipedia/en/7/7a/Manchester_United_FC_crest.svg";
 
-    let xmlText = null;
+    const renderSlides = (articles) => {
+        carousel.innerHTML = "";
+        articles.slice(0, 5).forEach((item, index) => {
+            carousel.innerHTML += `
+                <div class="slide" style="display: ${index === 0 ? 'block' : 'none'}; width: 100%;">
+                    <a href="${item.link}" target="_blank" rel="noopener noreferrer" style="text-decoration: none; color: inherit; display: block;">
+                        <img src="${item.img || fallbackImg}" style="width: 100%; height: 220px; object-fit: cover; border-radius: 8px;" onerror="this.src='${fallbackImg}'">
+                        <h3 style="margin-top: 10px; font-size: 15px; line-height: 1.4;">${item.title}</h3>
+                    </a>
+                </div>
+            `;
+        });
 
-    try {
-        const res = await fetch(proxyUrl);
-        if (res.ok) xmlText = await res.text();
-    } catch (e) {
-        console.warn("Primary proxy failed, trying fallback...", e);
-    }
+        if (typeof nextSlide === "function" && !window.skySportsIntervalStarted) {
+            window.skySportsIntervalStarted = true;
+            setInterval(nextSlide, 8000);
+        }
+    };
 
-    if (!xmlText) {
+    // 1. Check local storage cache (valid for 45 minutes)
+    const cachedData = localStorage.getItem("sky_sports_news_cache");
+    const cachedTime = localStorage.getItem("sky_sports_news_time");
+    const CACHE_DURATION = 45 * 60 * 1000; // 45 minutes
+
+    if (cachedData && cachedTime && (Date.now() - parseInt(cachedTime, 10) < CACHE_DURATION)) {
         try {
-            const fallbackRes = await fetch(fallbackProxyUrl);
-            if (fallbackRes.ok) xmlText = await fallbackRes.text();
+            const parsedCache = JSON.parse(cachedData);
+            if (Array.isArray(parsedCache) && parsedCache.length > 0) {
+                renderSlides(parsedCache);
+                return;
+            }
         } catch (e) {
-            console.error("All proxies failed:", e);
+            console.warn("Failed to parse cached news, fetching fresh...", e);
         }
     }
 
+    const rssUrl = "https://www.skysports.com/rss/11667";
+    
+    // 2. Cascade through 3 independent proxies
+    const proxyList = [
+        `https://corsproxy.io/?url=${encodeURIComponent(rssUrl)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(rssUrl)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`
+    ];
+
+    let xmlText = null;
+
+    for (const proxy of proxyList) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 4000); // 4-second timeout per proxy
+            const res = await fetch(proxy, { signal: controller.signal });
+            clearTimeout(timeoutId);
+
+            if (res.ok) {
+                const text = await res.text();
+                if (text && text.includes("<rss") || text.includes("<channel")) {
+                    xmlText = text;
+                    break; // Successfully got XML
+                }
+            }
+        } catch (err) {
+            console.warn(`Proxy ${proxy} failed, trying next...`);
+        }
+    }
+
+    // 3. Fallback to existing cache if proxies all failed
     if (!xmlText) {
+        if (cachedData) {
+            renderSlides(JSON.parse(cachedData));
+            return;
+        }
         carousel.innerHTML = "<p style='padding: 15px; color: var(--text-muted); font-size: 13px;'>Feed currently unavailable.</p>";
         return;
     }
 
-    // Parse raw RSS XML natively
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-    const items = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 5);
+    // 4. Parse XML and cache the result
+    try {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+        const items = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 5);
 
-    if (items.length === 0) {
-        carousel.innerHTML = "<p style='padding: 15px; color: var(--text-muted); font-size: 13px;'>No articles found.</p>";
-        return;
-    }
+        if (items.length === 0) throw new Error("No items parsed");
 
-    carousel.innerHTML = "";
-    items.forEach((item, index) => {
-        const title = item.querySelector("title")?.textContent || "Latest News";
-        const link = item.querySelector("link")?.textContent || "#";
-        const enclosure = item.querySelector("enclosure");
-        const imgSrc = enclosure ? enclosure.getAttribute("url") : fallbackImg;
+        const articles = items.map(item => {
+            const title = item.querySelector("title")?.textContent || "Latest News";
+            const link = item.querySelector("link")?.textContent || "#";
+            const enclosure = item.querySelector("enclosure");
+            const img = enclosure ? enclosure.getAttribute("url") : fallbackImg;
+            return { title, link, img };
+        });
 
-        carousel.innerHTML += `
-            <div class="slide" style="display: ${index === 0 ? 'block' : 'none'}; width: 100%;">
-                <a href="${link}" target="_blank" rel="noopener noreferrer" style="text-decoration: none; color: inherit; display: block;">
-                    <img src="${imgSrc}" style="width: 100%; height: 220px; object-fit: cover; border-radius: 8px;" onerror="this.src='${fallbackImg}'">
-                    <h3 style="margin-top: 10px; font-size: 15px; line-height: 1.4;">${title}</h3>
-                </a>
-            </div>
-        `;
-    });
+        // Save to cache
+        localStorage.setItem("sky_sports_news_cache", JSON.stringify(articles));
+        localStorage.setItem("sky_sports_news_time", Date.now().toString());
 
-    if (typeof nextSlide === "function") {
-        setInterval(nextSlide, 8000);
+        renderSlides(articles);
+    } catch (parseErr) {
+        console.error("XML Parsing failed:", parseErr);
+        if (cachedData) {
+            renderSlides(JSON.parse(cachedData));
+        } else {
+            carousel.innerHTML = "<p style='padding: 15px; color: var(--text-muted); font-size: 13px;'>Feed currently unavailable.</p>";
+        }
     }
 }
+
 
 
 
