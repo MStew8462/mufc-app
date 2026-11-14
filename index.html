@@ -2618,7 +2618,7 @@ async function loadSkySports() {
         }
     };
 
-    // 1. Check local storage cache (valid for 45 minutes)
+    // 1. Check local storage cache (Valid for 45 minutes)
     const cachedData = localStorage.getItem("sky_sports_news_cache");
     const cachedTime = localStorage.getItem("sky_sports_news_time");
     const CACHE_DURATION = 45 * 60 * 1000; // 45 minutes
@@ -2627,6 +2627,7 @@ async function loadSkySports() {
         try {
             const parsedCache = JSON.parse(cachedData);
             if (Array.isArray(parsedCache) && parsedCache.length > 0) {
+                console.log("Serving fresh cached news...");
                 renderSlides(parsedCache);
                 return;
             }
@@ -2635,9 +2636,12 @@ async function loadSkySports() {
         }
     }
 
-    const rssUrl = "https://www.skysports.com/rss/11667";
-    
-    // 2. Cascade through 3 independent proxies
+    // 2. Base RSS URL plus cache buster to force the proxy to pull a fresh XML feed
+    const timestamp = Date.now();
+    const baseRss = "https://www.skysports.com/rss/11667";
+    const rssUrl = `${baseRss}?cb=${timestamp}`; // e.g. https://www.skysports.com/rss/11667?cb=1700000000000
+
+    // Cascade through independent proxies, forcing them to download the un-cached URL
     const proxyList = [
         `https://corsproxy.io/?url=${encodeURIComponent(rssUrl)}`,
         `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(rssUrl)}`,
@@ -2648,26 +2652,28 @@ async function loadSkySports() {
 
     for (const proxy of proxyList) {
         try {
+            console.log(`Attempting fetch from proxy with cache-buster: ${proxy}`);
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 4000); // 4-second timeout per proxy
+            const timeoutId = setTimeout(() => controller.abort(), 4000); // 4-second timeout
             const res = await fetch(proxy, { signal: controller.signal });
             clearTimeout(timeoutId);
 
             if (res.ok) {
                 const text = await res.text();
-                if (text && text.includes("<rss") || text.includes("<channel")) {
+                if (text && (text.includes("<rss") || text.includes("<channel"))) {
                     xmlText = text;
                     break; // Successfully got XML
                 }
             }
         } catch (err) {
-            console.warn(`Proxy ${proxy} failed, trying next...`);
+            console.warn(`Proxy ${proxy} failed, trying next...`, err);
         }
     }
 
-    // 3. Fallback to existing cache if proxies all failed
+    // 3. Fallback to existing cache if proxies all fail
     if (!xmlText) {
         if (cachedData) {
+            console.log("Network error. Falling back to old cache.");
             renderSlides(JSON.parse(cachedData));
             return;
         }
@@ -2675,7 +2681,7 @@ async function loadSkySports() {
         return;
     }
 
-    // 4. Parse XML and cache the result
+    // 4. Parse XML and update the cache
     try {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlText, "text/xml");
@@ -2691,10 +2697,11 @@ async function loadSkySports() {
             return { title, link, img };
         });
 
-        // Save to cache
+        // Save fresh live feed to browser storage
         localStorage.setItem("sky_sports_news_cache", JSON.stringify(articles));
         localStorage.setItem("sky_sports_news_time", Date.now().toString());
 
+        console.log("Cached newly fetched news: ", articles);
         renderSlides(articles);
     } catch (parseErr) {
         console.error("XML Parsing failed:", parseErr);
