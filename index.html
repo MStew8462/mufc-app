@@ -2618,98 +2618,96 @@ async function loadSkySports() {
         }
     };
 
-    // 1. Check local storage cache (Valid for 45 minutes)
+    // 1. Check local storage cache (Valid for 30 minutes)
     const cachedData = localStorage.getItem("sky_sports_news_cache");
     const cachedTime = localStorage.getItem("sky_sports_news_time");
-    const CACHE_DURATION = 45 * 60 * 1000; // 45 minutes
+    const CACHE_DURATION = 30 * 60 * 1000;
 
     if (cachedData && cachedTime && (Date.now() - parseInt(cachedTime, 10) < CACHE_DURATION)) {
         try {
             const parsedCache = JSON.parse(cachedData);
             if (Array.isArray(parsedCache) && parsedCache.length > 0) {
-                console.log("Serving fresh cached news...");
                 renderSlides(parsedCache);
                 return;
             }
         } catch (e) {
-            console.warn("Failed to parse cached news, fetching fresh...", e);
+            localStorage.removeItem("sky_sports_news_cache");
         }
     }
 
-    // 2. Base RSS URL plus cache buster to force the proxy to pull a fresh XML feed
-    const timestamp = Date.now();
-    const baseRss = "https://www.skysports.com/rss/11667";
-    const rssUrl = `${baseRss}?cb=${timestamp}`; // e.g. https://www.skysports.com/rss/11667?cb=1700000000000
+    // 2. Clean Sky Sports RSS URLs (no query parameters attached to Sky's URL)
+    const primaryRss = "https://www.skysports.com/rss/11667";
+    const backupRss = "https://www.skysports.com/rss/0,20514,11095,00.xml";
 
-    // Cascade through independent proxies, forcing them to download the un-cached URL
-    const proxyList = [
-        `https://corsproxy.io/?url=${encodeURIComponent(rssUrl)}`,
-        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(rssUrl)}`,
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`
+    // Try JSON converter first, then raw XML proxies
+    const sources = [
+        { type: "json", url: `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(primaryRss)}` },
+        { type: "xml",  url: `https://corsproxy.io/?url=${encodeURIComponent(primaryRss)}` },
+        { type: "xml",  url: `https://api.allorigins.win/raw?url=${encodeURIComponent(primaryRss)}` },
+        { type: "xml",  url: `https://corsproxy.io/?url=${encodeURIComponent(backupRss)}` }
     ];
 
-    let xmlText = null;
+    let articles = [];
 
-    for (const proxy of proxyList) {
+    for (const source of sources) {
         try {
-            console.log(`Attempting fetch from proxy with cache-buster: ${proxy}`);
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 4000); // 4-second timeout
-            const res = await fetch(proxy, { signal: controller.signal });
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const res = await fetch(source.url, { 
+                signal: controller.signal,
+                cache: "no-store" // Forces browser to bypass local HTTP cache
+            });
             clearTimeout(timeoutId);
 
-            if (res.ok) {
+            if (!res.ok) continue;
+
+            if (source.type === "json") {
+                const data = await res.json();
+                if (data.status === "ok" && Array.isArray(data.items) && data.items.length > 0) {
+                    articles = data.items.slice(0, 5).map(item => ({
+                        title: item.title || "Latest News",
+                        link: item.link || "#",
+                        img: (item.enclosure && item.enclosure.link) ? item.enclosure.link : (item.thumbnail || fallbackImg)
+                    }));
+                    break;
+                }
+            } else {
                 const text = await res.text();
                 if (text && (text.includes("<rss") || text.includes("<channel"))) {
-                    xmlText = text;
-                    break; // Successfully got XML
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(text, "text/xml");
+                    const items = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 5);
+                    if (items.length > 0) {
+                        articles = items.map(item => {
+                            const enclosure = item.querySelector("enclosure");
+                            return {
+                                title: item.querySelector("title")?.textContent || "Latest News",
+                                link: item.querySelector("link")?.textContent || "#",
+                                img: enclosure ? enclosure.getAttribute("url") : fallbackImg
+                            };
+                        });
+                        break;
+                    }
                 }
             }
         } catch (err) {
-            console.warn(`Proxy ${proxy} failed, trying next...`, err);
+            console.warn(`Source failed (${source.url}), trying next...`);
         }
     }
 
-    // 3. Fallback to existing cache if proxies all fail
-    if (!xmlText) {
-        if (cachedData) {
-            console.log("Network error. Falling back to old cache.");
-            renderSlides(JSON.parse(cachedData));
-            return;
-        }
-        carousel.innerHTML = "<p style='padding: 15px; color: var(--text-muted); font-size: 13px;'>Feed currently unavailable.</p>";
-        return;
-    }
-
-    // 4. Parse XML and update the cache
-    try {
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-        const items = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 5);
-
-        if (items.length === 0) throw new Error("No items parsed");
-
-        const articles = items.map(item => {
-            const title = item.querySelector("title")?.textContent || "Latest News";
-            const link = item.querySelector("link")?.textContent || "#";
-            const enclosure = item.querySelector("enclosure");
-            const img = enclosure ? enclosure.getAttribute("url") : fallbackImg;
-            return { title, link, img };
-        });
-
-        // Save fresh live feed to browser storage
+    // 3. Render fresh articles or fall back to older cache if available
+    if (articles.length > 0) {
         localStorage.setItem("sky_sports_news_cache", JSON.stringify(articles));
         localStorage.setItem("sky_sports_news_time", Date.now().toString());
-
-        console.log("Cached newly fetched news: ", articles);
         renderSlides(articles);
-    } catch (parseErr) {
-        console.error("XML Parsing failed:", parseErr);
-        if (cachedData) {
+    } else if (cachedData) {
+        try {
             renderSlides(JSON.parse(cachedData));
-        } else {
+        } catch (e) {
             carousel.innerHTML = "<p style='padding: 15px; color: var(--text-muted); font-size: 13px;'>Feed currently unavailable.</p>";
         }
+    } else {
+        carousel.innerHTML = "<p style='padding: 15px; color: var(--text-muted); font-size: 13px;'>Feed currently unavailable.</p>";
     }
 }
 
